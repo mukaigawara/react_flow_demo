@@ -40,7 +40,7 @@ type HandleId = 'top' | 'right' | 'bottom' | 'left'
 
 const LANE_W = 380
 const LANE_H = 920
-const LANE_GAP = 120
+const LANE_GAP = 0
 const HEADER_Y = 92
 const NODE_GAP = 56
 const PROCESS_W = 232
@@ -430,7 +430,7 @@ function decision(
   }
 }
 
-const initialNodes: FlowNode[] = [
+const initialNodes: FlowNode[] = withLaneColumns([
   lane('lane-frontend', 'フロントエンド', 'frontend', 0),
   lane('lane-backend', 'バックエンド', 'backend', LANE_W + LANE_GAP),
   lane('lane-database', 'データベース', 'database', (LANE_W + LANE_GAP) * 2),
@@ -453,7 +453,7 @@ const initialNodes: FlowNode[] = [
   process('db-recv', '受信要求', 'database', 'lane-database', 448),
   decision('db-accept', '要求の受理', 'database', 'lane-database', 576),
   process('db-sql', 'SQL文を実行する', 'database', 'lane-database', 764),
-]
+])
 
 function laneEdge(
   id: string,
@@ -560,6 +560,20 @@ function isSwimlane(node: FlowNode): node is SwimlaneNode {
   return node.type === 'swimlane'
 }
 
+function withLaneColumns(nodes: FlowNode[]): FlowNode[] {
+  const lanes = nodes
+    .filter(isSwimlane)
+    .slice()
+    .sort((a, b) => a.position.x - b.position.x)
+
+  return nodes.map((node) => {
+    if (!isSwimlane(node)) return node
+    const index = lanes.findIndex((lane) => lane.id === node.id)
+    const column = index === 0 ? 'first' : index === lanes.length - 1 ? 'last' : 'middle'
+    return { ...node, className: `swimlane-column swimlane-column--${column}` }
+  })
+}
+
 function nodeSize(node: FlowNode) {
   if (node.type === 'decision') return { w: DECISION_W, h: DECISION_H }
   return { w: PROCESS_W, h: PROCESS_H }
@@ -626,7 +640,7 @@ function formatNodes(nodes: FlowNode[]): FlowNode[] {
     x += LANE_W + LANE_GAP
   }
 
-  return formatted
+  return withLaneColumns(formatted)
 }
 
 function absolutePosition(nodes: FlowNode[], node: FlowNode) {
@@ -758,10 +772,10 @@ function SwimLaneEditor() {
         style: { width: LANE_W, height: 520 },
       }
 
-      return [
+      return withLaneColumns([
         ...current.map((node) => ({ ...node, selected: false })),
         nextLane,
-      ]
+      ])
     })
     scheduleFitView()
   }, [scheduleFitView, setNodes])
