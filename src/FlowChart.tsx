@@ -4,7 +4,6 @@ import {
   MiniMap,
   Controls,
   Background,
-  BackgroundVariant,
   useNodesState,
   useEdgesState,
   addEdge,
@@ -227,7 +226,7 @@ export default function FlowChart() {
       attributionPosition="bottom-left"
       defaultEdgeOptions={{ markerEnd: arrow }}
     >
-      <Background variant={BackgroundVariant.Dots} gap={22} size={1.4} color="#c5cddb" />
+      <Background />
       <MiniMap nodeColor={nodeColor} pannable zoomable maskColor="rgba(18, 21, 28, 0.08)" />
       <Controls showInteractive={false} />
       <Panel position="top-left" className="flow-panel">

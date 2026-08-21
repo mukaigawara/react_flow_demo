@@ -5,11 +5,11 @@ import {
   MiniMap,
   Controls,
   Background,
-  BackgroundVariant,
   useNodesState,
   useEdgesState,
   useReactFlow,
   addEdge,
+  applyNodeChanges,
   reconnectEdge,
   Panel,
   Handle,
@@ -17,31 +17,35 @@ import {
   MarkerType,
   ConnectionMode,
   ConnectionLineType,
-  NodeResizer,
   type Node,
   type Edge,
   type Connection,
   type NodeProps,
   type NodeTypes,
   type OnBeforeDelete,
+  type OnNodeDrag,
+  type OnNodesChange,
 } from '@xyflow/react'
 
 type LaneTone = 'frontend' | 'backend' | 'database' | 'ops' | 'other'
 
 type SwimlaneData = { label: string; tone: LaneTone }
+type SwimlaneFrameData = Record<string, never>
 type ProcessData = { label: string; tone: LaneTone }
 type DecisionData = { label: string; tone: LaneTone }
 
+type SwimlaneFrameNode = Node<SwimlaneFrameData, 'swimlane-frame'>
 type SwimlaneNode = Node<SwimlaneData, 'swimlane'>
 type ProcessNode = Node<ProcessData, 'process'>
 type DecisionFlowNode = Node<DecisionData, 'decision'>
-type FlowNode = SwimlaneNode | ProcessNode | DecisionFlowNode
+type FlowNode = SwimlaneFrameNode | SwimlaneNode | ProcessNode | DecisionFlowNode
 type FlowEdge = Edge
 type HandleId = 'top' | 'right' | 'bottom' | 'left'
 
 const LANE_W = 380
 const LANE_H = 920
-const LANE_GAP = 120
+const LANE_GAP = 0
+const SWIMLANE_FRAME_ID = 'swimlane-frame'
 const HEADER_Y = 92
 const NODE_GAP = 56
 const PROCESS_W = 232
@@ -326,17 +330,11 @@ function EditableLabel({
   )
 }
 
-function SwimlaneLane({ id, data, selected }: NodeProps<SwimlaneNode>) {
+function SwimlaneLane({ id, data }: NodeProps<SwimlaneNode>) {
   const { updateNodeData } = useReactFlow()
 
   return (
     <div className={`swimlane-node swimlane-node--${data.tone}`}>
-      <NodeResizer
-        isVisible={selected}
-        minWidth={280}
-        minHeight={360}
-        color="#818cf8"
-      />
       <div className="swimlane-node__title">
         <EditableLabel
           value={data.label}
@@ -347,11 +345,15 @@ function SwimlaneLane({ id, data, selected }: NodeProps<SwimlaneNode>) {
   )
 }
 
+function SwimlaneFrame() {
+  return <div className="swimlane-frame" />
+}
+
 function ProcessBox({ id, data }: NodeProps<ProcessNode>) {
   const { updateNodeData } = useReactFlow()
 
   return (
-    <div className={`process-node process-node--${data.tone}`}>
+    <div className="process-node">
       <CardinalHandles />
       <EditableLabel
         value={data.label}
@@ -378,19 +380,37 @@ function DecisionBox({ id, data }: NodeProps<DecisionFlowNode>) {
 }
 
 const nodeTypes = {
+  'swimlane-frame': SwimlaneFrame,
   swimlane: SwimlaneLane,
   process: ProcessBox,
   decision: DecisionBox,
 } satisfies NodeTypes
 
+function swimlaneFrame(width: number, height: number): SwimlaneFrameNode {
+  return {
+    id: SWIMLANE_FRAME_ID,
+    type: 'swimlane-frame',
+    position: { x: 0, y: 0 },
+    data: {},
+    style: { width, height },
+    connectable: false,
+    draggable: false,
+    selectable: false,
+    zIndex: -1,
+  }
+}
+
 function lane(id: string, label: string, tone: LaneTone, x: number): SwimlaneNode {
   return {
     id,
     type: 'swimlane',
+    parentId: SWIMLANE_FRAME_ID,
+    extent: 'parent',
     position: { x, y: 0 },
     data: { label, tone },
     style: { width: LANE_W, height: LANE_H },
     connectable: false,
+    draggable: false,
     zIndex: 0,
   }
 }
@@ -406,7 +426,6 @@ function process(
     id,
     type: 'process',
     parentId,
-    extent: 'parent',
     position: { x: laneInnerX(LANE_W, PROCESS_W), y },
     data: { label, tone },
     style: { width: PROCESS_W, height: PROCESS_H },
@@ -424,14 +443,14 @@ function decision(
     id,
     type: 'decision',
     parentId,
-    extent: 'parent',
     position: { x: laneInnerX(LANE_W, DECISION_W), y },
     data: { label, tone },
     style: { width: DECISION_W, height: DECISION_H },
   }
 }
 
-const initialNodes: FlowNode[] = [
+const initialNodes: FlowNode[] = withLaneColumns([
+  swimlaneFrame(LANE_W * 3, LANE_H),
   lane('lane-frontend', 'フロントエンド', 'frontend', 0),
   lane('lane-backend', 'バックエンド', 'backend', LANE_W + LANE_GAP),
   lane('lane-database', 'データベース', 'database', (LANE_W + LANE_GAP) * 2),
@@ -444,17 +463,17 @@ const initialNodes: FlowNode[] = [
     'lane-frontend',
     alignCenterY(224, DECISION_H, PROCESS_H),
   ),
-  process('fe-success', '成功処理', 'frontend', 'lane-frontend', 764),
+  process('fe-success', '成功処理', 'frontend', 'lane-frontend', 800),
 
   process('be-recv', '受信要求', 'backend', 'lane-backend', 104),
   decision('be-parse', '解析要求', 'backend', 'lane-backend', 224),
   process('be-dbreq', 'データベースと接続を要求', 'backend', 'lane-backend', 448),
-  process('be-data', 'データ解析', 'backend', 'lane-backend', 764),
+  process('be-data', 'データ解析', 'backend', 'lane-backend', 800),
 
   process('db-recv', '受信要求', 'database', 'lane-database', 448),
   decision('db-accept', '要求の受理', 'database', 'lane-database', 576),
-  process('db-sql', 'SQL文を実行する', 'database', 'lane-database', 764),
-]
+  process('db-sql', 'SQL文を実行する', 'database', 'lane-database', 800),
+])
 
 function laneEdge(
   id: string,
@@ -561,9 +580,69 @@ function isSwimlane(node: FlowNode): node is SwimlaneNode {
   return node.type === 'swimlane'
 }
 
+function isSwimlaneFrame(node: FlowNode): node is SwimlaneFrameNode {
+  return node.type === 'swimlane-frame'
+}
+
+function isEditableFlowNode(
+  node: FlowNode,
+): node is SwimlaneNode | ProcessNode | DecisionFlowNode {
+  return !isSwimlaneFrame(node)
+}
+
+function isLaneChild(node: FlowNode): node is ProcessNode | DecisionFlowNode {
+  return !isSwimlaneFrame(node) && !isSwimlane(node)
+}
+
+function withLaneColumns(nodes: FlowNode[]): FlowNode[] {
+  const lanes = nodes
+    .filter(isSwimlane)
+    .slice()
+    .sort((a, b) => a.position.x - b.position.x)
+  const height = lanes.reduce(
+    (max, lane) => Math.max(max, Number(lane.style?.height ?? LANE_H)),
+    LANE_H,
+  )
+  const laneIds = new Set(lanes.map((lane) => lane.id))
+
+  return nodes
+    .filter(
+      (node) =>
+        isSwimlaneFrame(node) ||
+        isSwimlane(node) ||
+        !node.parentId ||
+        laneIds.has(node.parentId),
+    )
+    .map((node) => {
+      if (isSwimlaneFrame(node)) {
+        return {
+          ...node,
+          style: { ...node.style, width: lanes.length * LANE_W, height },
+        }
+      }
+      if (!isSwimlane(node)) return { ...node, extent: undefined }
+      const index = lanes.findIndex((lane) => lane.id === node.id)
+      const column =
+        index === 0 ? 'first' : index === lanes.length - 1 ? 'last' : 'middle'
+      return {
+        ...node,
+        parentId: SWIMLANE_FRAME_ID,
+        extent: 'parent',
+        position: { x: index * LANE_W, y: 0 },
+        style: { ...node.style, width: LANE_W, height },
+        draggable: false,
+        className: `swimlane-column swimlane-column--${column}`,
+      }
+    })
+}
+
 function nodeSize(node: FlowNode) {
   if (node.type === 'decision') return { w: DECISION_W, h: DECISION_H }
   return { w: PROCESS_W, h: PROCESS_H }
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max)
 }
 
 function laneWidth(node: FlowNode) {
@@ -592,7 +671,7 @@ function formatNodes(nodes: FlowNode[]): FlowNode[] {
     .filter(isSwimlane)
     .slice()
     .sort((a, b) => a.position.x - b.position.x)
-  const children = nodes.filter((node) => node.parentId)
+  const children = nodes.filter((node) => node.parentId && !isSwimlane(node))
   const formatted: FlowNode[] = []
   let x = 0
 
@@ -627,17 +706,24 @@ function formatNodes(nodes: FlowNode[]): FlowNode[] {
     x += LANE_W + LANE_GAP
   }
 
-  return formatted
+  return withLaneColumns([...nodes.filter(isSwimlaneFrame), ...formatted])
 }
 
 function absolutePosition(nodes: FlowNode[], node: FlowNode) {
-  const parent = node.parentId
-    ? nodes.find((item) => item.id === node.parentId)
-    : undefined
-  return {
-    x: (parent?.position.x ?? 0) + node.position.x,
-    y: (parent?.position.y ?? 0) + node.position.y,
+  let current: FlowNode | undefined = node
+  let x = 0
+  let y = 0
+
+  while (current) {
+    x += current.position.x
+    y += current.position.y
+    const parentId: string | undefined = current.parentId
+    current = parentId
+      ? nodes.find((item) => item.id === parentId)
+      : undefined
   }
+
+  return { x, y }
 }
 
 function connectHandles(nodes: FlowNode[], source: FlowNode, target: FlowNode) {
@@ -662,36 +748,100 @@ function cloneGraph() {
   }
 }
 
+const LANE_SWATCH: Record<LaneTone, string> = {
+  frontend: '#e8ecf2',
+  backend: '#ece8f2',
+  database: '#e8eaf0',
+  ops: '#e7eeef',
+  other: '#eceaf0',
+}
+
 function nodeColor(node: Node) {
   const tone = (node.data as { tone?: LaneTone } | undefined)?.tone
-  if (node.type === 'swimlane') {
-    if (tone === 'frontend') return '#d5e4f6'
-    if (tone === 'backend') return '#f3e0c4'
-    if (tone === 'database') return '#f3d4e4'
-    if (tone === 'ops') return '#cfe8dc'
-    if (tone === 'other') return '#e0d7f4'
-  }
-  if (tone === 'frontend') return '#2563eb'
-  if (tone === 'backend') return '#d97706'
-  if (tone === 'database') return '#db2777'
-  if (tone === 'ops') return '#059669'
-  if (tone === 'other') return '#7c3aed'
-  return '#64748b'
+  if (node.type === 'swimlane' && tone) return LANE_SWATCH[tone]
+  return '#ffffff'
 }
 
 function SwimLaneEditor() {
-  const { fitView, deleteElements } = useReactFlow<FlowNode, FlowEdge>()
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
+  const { fitView } = useReactFlow<FlowNode, FlowEdge>()
+  const [nodes, setNodes] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState<FlowEdge>(initialEdges)
 
   const selectedNodes = nodes.filter((node) => node.selected)
   const selectedEdges = edges.filter((edge) => edge.selected)
-  const selectedNode = selectedNodes.length === 1 ? selectedNodes[0] : undefined
+  const selectedNode =
+    selectedNodes.length === 1 && isEditableFlowNode(selectedNodes[0])
+      ? selectedNodes[0]
+      : undefined
   const selectedEdge = selectedEdges.length === 1 ? selectedEdges[0] : undefined
   const targetLane = getTargetLane(nodes)
   const selectedItems = selectedNodes.filter((node) => node.type !== 'swimlane')
   const canConnect = selectedItems.length === 2
   const canDelete = selectedNodes.length > 0 || selectedEdges.length > 0
+
+  const onNodesChange = useCallback<OnNodesChange<FlowNode>>(
+    (changes) => {
+      setNodes((current) => {
+        const allowedChanges = changes.filter((change) => {
+          if (change.type === 'add') return true
+          const node = current.find((item) => item.id === change.id)
+          if (!node) return false
+          if (isSwimlaneFrame(node)) return change.type === 'dimensions'
+          return !(isSwimlane(node) && change.type === 'position')
+        })
+        return withLaneColumns(applyNodeChanges(allowedChanges, current))
+      })
+    },
+    [setNodes],
+  )
+
+  const onNodeDragStop = useCallback<OnNodeDrag<FlowNode>>(
+    (_event, draggedNode) => {
+      if (!isLaneChild(draggedNode)) return
+
+      setNodes((current) => {
+        const node = current.find((item) => item.id === draggedNode.id)
+        if (!node || !isLaneChild(node)) return current
+
+        const lanes = current.filter(isSwimlane)
+        const currentLane = lanes.find((lane) => lane.id === node.parentId)
+        if (!currentLane) return current
+
+        const { w, h } = nodeSize(node)
+        const absoluteX = currentLane.position.x + draggedNode.position.x
+        const absoluteY = currentLane.position.y + draggedNode.position.y
+        const centerX = absoluteX + w / 2
+        const targetLane =
+          lanes.find(
+            (lane) =>
+              centerX >= lane.position.x &&
+              centerX <= lane.position.x + laneWidth(lane),
+          ) ?? currentLane
+        const targetHeight = Number(targetLane.style?.height ?? LANE_H)
+
+        return withLaneColumns(
+          current.map((item) =>
+            item.id === node.id
+              ? {
+                  ...node,
+                  parentId: targetLane.id,
+                  position: {
+                    x: clamp(
+                      absoluteX - targetLane.position.x,
+                      24,
+                      LANE_W - w - 24,
+                    ),
+                    y: clamp(absoluteY, HEADER_Y, targetHeight - h - 24),
+                  },
+                  data: { ...node.data, tone: targetLane.data.tone },
+                }
+              : item,
+          ),
+        )
+      })
+    },
+    [setNodes],
+  )
 
   const onConnect = useCallback(
     (params: Connection) =>
@@ -759,13 +909,13 @@ function SwimLaneEditor() {
       const nextLane: SwimlaneNode = {
         ...lane(`lane-${crypto.randomUUID()}`, label, tone, x),
         selected: true,
-        style: { width: LANE_W, height: 520 },
+        style: { width: LANE_W, height: LANE_H },
       }
 
-      return [
+      return withLaneColumns([
         ...current.map((node) => ({ ...node, selected: false })),
         nextLane,
-      ]
+      ])
     })
     scheduleFitView()
   }, [scheduleFitView, setNodes])
@@ -809,7 +959,7 @@ function SwimLaneEditor() {
         const needed = y + h + 56
         const currentHeight = Number(parent.style?.height ?? LANE_H)
 
-        return [
+        return withLaneColumns([
           ...working.map((node) => {
             if (node.id === parent.id) {
               return {
@@ -824,7 +974,7 @@ function SwimLaneEditor() {
             return { ...node, selected: false }
           }),
           nextNode,
-        ]
+        ])
       })
     },
     [setNodes],
@@ -854,15 +1004,27 @@ function SwimLaneEditor() {
   }, [scheduleFitView, setEdges, setNodes])
 
   const removeSelected = useCallback(() => {
-    const extraChildren = nodes.filter(
-      (node) =>
-        node.parentId && selectedNodes.some((item) => item.id === node.parentId),
+    const selectedIds = new Set(selectedNodes.map((node) => node.id))
+    const removingIds = new Set(
+      nodes
+        .filter(
+          (node) => selectedIds.has(node.id) || (node.parentId && selectedIds.has(node.parentId)),
+        )
+        .map((node) => node.id),
     )
-    void deleteElements({
-      nodes: [...selectedNodes, ...extraChildren],
-      edges: selectedEdges,
-    })
-  }, [deleteElements, nodes, selectedEdges, selectedNodes])
+
+    setNodes((current) =>
+      withLaneColumns(current.filter((node) => !removingIds.has(node.id))),
+    )
+    setEdges((current) =>
+      current.filter(
+        (edge) =>
+          !selectedEdges.some((item) => item.id === edge.id) &&
+          !removingIds.has(edge.source) &&
+          !removingIds.has(edge.target),
+      ),
+    )
+  }, [nodes, selectedEdges, selectedNodes, setEdges, setNodes])
 
   const reset = useCallback(() => {
     const graph = cloneGraph()
@@ -884,7 +1046,7 @@ function SwimLaneEditor() {
       if (selectedNode) {
         setNodes((current) =>
           current.map((node) =>
-            node.id === selectedNode.id
+            node.id === selectedNode.id && isEditableFlowNode(node)
               ? { ...node, data: { ...node.data, label } }
               : node,
           ),
@@ -906,7 +1068,7 @@ function SwimLaneEditor() {
       if (!selectedNode) return
       setNodes((current) =>
         current.map((node) =>
-          node.id === selectedNode.id
+          node.id === selectedNode.id && isEditableFlowNode(node)
             ? { ...node, data: { ...node.data, tone } }
             : node,
         ),
@@ -950,6 +1112,7 @@ function SwimLaneEditor() {
       nodes={nodes}
       edges={edges}
       onNodesChange={onNodesChange}
+      onNodeDragStop={onNodeDragStop}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
       onReconnect={onReconnect}
@@ -973,7 +1136,7 @@ function SwimLaneEditor() {
       edgesReconnectable
       attributionPosition="bottom-left"
     >
-      <Background variant={BackgroundVariant.Dots} gap={28} size={1} color="#d9dce3" />
+      <Background />
       <MiniMap nodeColor={nodeColor} pannable zoomable maskColor="rgba(18, 21, 28, 0.06)" />
       <Controls showInteractive={false} />
       <Panel position="top-left" className="flow-panel">
@@ -989,7 +1152,7 @@ function SwimLaneEditor() {
             className="selection-sheet"
             onPointerDown={(event) => event.stopPropagation()}
           >
-            <label className="flow-field selection-sheet__name">
+            <label className="selection-sheet__name">
               {selectedEdge ? '線のラベル' : '名前'}
               <input
                 className="nodrag nopan"
