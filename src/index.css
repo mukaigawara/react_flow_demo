@@ -705,41 +705,41 @@ body,
 
 .swimlane-node--frontend {
   --lane-accent: #2563eb;
-  --lane-fill: #eef4fc;
-  --lane-header: #dce8f8;
-  --lane-border: #b9ccea;
+  --lane-fill: #e4eefb;
+  --lane-header: #c9ddf6;
+  --lane-border: #9bbce8;
   --lane-title: #1e40af;
 }
 
 .swimlane-node--backend {
   --lane-accent: #d97706;
-  --lane-fill: #fbf3e8;
-  --lane-header: #f5e4cc;
-  --lane-border: #e8cda3;
+  --lane-fill: #faebd4;
+  --lane-header: #f3d7af;
+  --lane-border: #e0bb80;
   --lane-title: #92400e;
 }
 
 .swimlane-node--database {
   --lane-accent: #db2777;
-  --lane-fill: #fbf0f5;
-  --lane-header: #f5dce8;
-  --lane-border: #e8b4cb;
+  --lane-fill: #f9e3ee;
+  --lane-header: #f2cddf;
+  --lane-border: #e0a3c0;
   --lane-title: #9d174d;
 }
 
 .swimlane-node--ops {
   --lane-accent: #059669;
-  --lane-fill: #eef8f3;
-  --lane-header: #d5eee3;
-  --lane-border: #a8d4c0;
+  --lane-fill: #def3e9;
+  --lane-header: #c3e8d6;
+  --lane-border: #8ecdb3;
   --lane-title: #065f46;
 }
 
 .swimlane-node--other {
   --lane-accent: #7c3aed;
-  --lane-fill: #f4f0fb;
-  --lane-header: #e6def7;
-  --lane-border: #cbbcec;
+  --lane-fill: #eee7fb;
+  --lane-header: #ddd0f5;
+  --lane-border: #c0aae8;
   --lane-title: #5b21b6;
 }
 
