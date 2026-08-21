@@ -638,8 +638,8 @@ body,
 
 .swimlane-flow.react-flow {
   background:
-    radial-gradient(1000px 460px at 50% -12%, #f8f9fb 0%, transparent 70%),
-    #eef0f3;
+    radial-gradient(1000px 460px at 50% -12%, #fafbfc 0%, transparent 70%),
+    #f3f4f6;
 }
 
 .swimlane-flow .decision-node {

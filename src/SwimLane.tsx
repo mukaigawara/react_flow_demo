@@ -889,7 +889,7 @@ function SwimLaneEditor() {
       edgesReconnectable
       attributionPosition="bottom-left"
     >
-      <Background variant={BackgroundVariant.Dots} gap={28} size={1} color="#d5dbe4" />
+      <Background variant={BackgroundVariant.Dots} gap={28} size={1} color="#d9dce3" />
       <MiniMap nodeColor={nodeColor} pannable zoomable maskColor="rgba(18, 21, 28, 0.06)" />
       <Controls showInteractive={false} />
       <Panel position="top-left" className="flow-panel">
