@@ -427,8 +427,14 @@ body,
   color: var(--muted);
 }
 
-.react-flow__node {
-  font-weight: 700;
+.react-flow__node,
+.react-flow__node-start,
+.react-flow__node-process,
+.react-flow__node-error,
+.react-flow__node-end,
+.react-flow__node-decision,
+.react-flow__node-swimlane {
+  overflow: visible;
 }
 
 .react-flow__node-start,
@@ -442,6 +448,7 @@ body,
   background: transparent;
   box-shadow: none;
   text-align: center;
+  overflow: visible !important;
 }
 
 .flow-pill {
@@ -669,7 +676,7 @@ body,
 .process-node {
   position: relative;
   min-width: 196px;
-  overflow: hidden;
+  overflow: visible;
   padding: 12px 14px 12px 18px;
   border-radius: 12px;
   text-align: center;
@@ -689,7 +696,9 @@ body,
   top: 0;
   bottom: 0;
   width: 4px;
+  border-radius: 12px 0 0 12px;
   background: var(--tone, #64748b);
+  pointer-events: none;
 }
 
 .process-node--frontend {
@@ -719,23 +728,35 @@ body,
 }
 
 .react-flow__handle {
-  width: 11px;
-  height: 11px;
+  width: 10px;
+  height: 10px;
+  opacity: 0;
   background-color: #fff;
   border: 2px solid var(--accent);
   box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.12);
+  transition: opacity 0.12s ease, box-shadow 0.12s ease;
+}
+
+.react-flow__node:hover .react-flow__handle,
+.react-flow__node.selected .react-flow__handle,
+.react-flow__handle.connectingfrom,
+.react-flow__handle.connectingto,
+.react-flow__handle.valid {
+  opacity: 1;
 }
 
 .react-flow__handle:hover {
   box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.2);
 }
 
-.decision-node .react-flow__handle,
-.process-node .react-flow__handle {
-  width: 11px;
-  height: 11px;
+.decision-node,
+.flow-card,
+.flow-pill {
+  overflow: visible;
 }
 
+.decision-node .react-flow__handle,
+.process-node .react-flow__handle,
 .flow-pill .react-flow__handle,
 .flow-card .react-flow__handle {
   width: 10px;
