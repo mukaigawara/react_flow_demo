@@ -471,7 +471,7 @@ const initialNodes: FlowNode[] = withLaneColumns([
 
   process('db-recv', '受信要求', 'database', 'lane-database', 448),
   decision('db-accept', '要求の受理', 'database', 'lane-database', 576),
-  process('db-sql', 'SQL文を実行する', 'database', 'lane-database', 764),
+  process('db-sql', 'SQL文を実行する', 'database', 'lane-database', 800),
 ])
 
 function laneEdge(
