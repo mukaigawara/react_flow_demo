@@ -674,7 +674,6 @@ body,
   box-sizing: border-box;
   border-radius: 18px;
   border: 1px solid var(--lane-border);
-  border-left: 7px solid var(--lane-accent);
   background: var(--lane-fill);
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
 }
@@ -691,7 +690,7 @@ body,
   color: var(--lane-title);
   border-bottom: 1px solid var(--lane-border);
   background: var(--lane-header);
-  border-radius: 0 17px 0 0;
+  border-radius: 17px 17px 0 0;
 }
 
 .swimlane-node__title::before {
