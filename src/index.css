@@ -509,6 +509,7 @@ body,
 }
 
 .flow-field input,
+.selection-sheet__name input,
 .node-label-input {
   font: inherit;
   font-size: 13px;
@@ -525,6 +526,7 @@ body,
 }
 
 .flow-field input:focus,
+.selection-sheet__name input:focus,
 .node-label-input:focus {
   outline: none;
   border-color: #a5b4fc;
