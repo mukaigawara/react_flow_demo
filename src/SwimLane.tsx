@@ -276,7 +276,7 @@ function ProcessBox({ id, data }: NodeProps<ProcessNode>) {
   const { updateNodeData } = useReactFlow()
 
   return (
-    <div className={`process-node process-node--${data.tone}`}>
+    <div className="process-node">
       <CardinalHandles />
       <EditableLabel
         value={data.label}
@@ -647,21 +647,18 @@ function cloneGraph() {
   }
 }
 
+const LANE_SWATCH: Record<LaneTone, string> = {
+  frontend: '#e8ecf2',
+  backend: '#ece8f2',
+  database: '#e8eaf0',
+  ops: '#e7eeef',
+  other: '#eceaf0',
+}
+
 function nodeColor(node: Node) {
   const tone = (node.data as { tone?: LaneTone } | undefined)?.tone
-  if (node.type === 'swimlane') {
-    if (tone === 'frontend') return '#e8eef4'
-    if (tone === 'backend') return '#f0ebe4'
-    if (tone === 'database') return '#f0e8ec'
-    if (tone === 'ops') return '#e5efe9'
-    if (tone === 'other') return '#eceaf3'
-  }
-  if (tone === 'frontend') return '#5a7a9a'
-  if (tone === 'backend') return '#9a7a58'
-  if (tone === 'database') return '#9a6f84'
-  if (tone === 'ops') return '#5e8a76'
-  if (tone === 'other') return '#7574a0'
-  return '#64748b'
+  if (node.type === 'swimlane' && tone) return LANE_SWATCH[tone]
+  return '#ffffff'
 }
 
 function SwimLaneEditor() {
