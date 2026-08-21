@@ -18,7 +18,6 @@ import {
   type NodeProps,
   type NodeTypes,
 } from '@xyflow/react'
-import '@xyflow/react/dist/style.css'
 
 type FlowNode = Node<{ label: string }>
 

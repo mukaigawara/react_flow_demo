@@ -25,7 +25,6 @@ import {
   type NodeTypes,
   type OnBeforeDelete,
 } from '@xyflow/react'
-import '@xyflow/react/dist/style.css'
 
 type LaneTone = 'frontend' | 'backend' | 'database' | 'ops' | 'other'
 

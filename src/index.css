@@ -106,9 +106,9 @@ body,
 }
 
 .app-nav__links a.is-active {
-  background: var(--surface);
-  color: var(--accent);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  box-shadow: none;
 }
 
 .app-canvas {
@@ -118,12 +118,19 @@ body,
 
 .react-flow {
   --xy-background-color: transparent;
+  --xy-node-border: none;
+  --xy-node-background-color: transparent;
   --xy-node-border-radius: 14px;
   --xy-node-boxshadow-default: none;
+  --xy-node-boxshadow-hover: none;
   --xy-node-boxshadow-selected: none;
   --xy-edge-stroke: #94a3b8;
   --xy-edge-stroke-width: 2;
+  --xy-edge-stroke-selected: #4f46e5;
   --xy-connectionline-stroke: var(--accent);
+  --xy-connectionline-stroke-width: 2;
+  --xy-handle-background-color: #ffffff;
+  --xy-handle-border-color: #4f46e5;
   --xy-minimap-background-color-default: #fff;
   --xy-controls-button-background-color-default: #fff;
   --xy-controls-button-background-color-hover-default: var(--accent-soft);
@@ -155,8 +162,7 @@ body,
   margin: 0 0 6px;
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  letter-spacing: 0.08em;
   color: var(--accent);
 }
 
@@ -179,8 +185,9 @@ body,
   flex-wrap: wrap;
   gap: 6px;
   margin: 14px 0 0;
-  padding: 0;
+  padding: 14px 0 0;
   list-style: none;
+  border-top: 1px solid var(--line);
 }
 
 .flow-legend li {
@@ -243,11 +250,11 @@ body,
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 8px 0 4px;
+  padding: 0 10px 0 6px;
+  border-right: 1px solid var(--line);
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: 800;
+  letter-spacing: 0.04em;
   color: var(--muted);
 }
 
@@ -414,6 +421,10 @@ body,
 .inspector-empty {
   display: grid;
   gap: 6px;
+}
+
+.inspector-empty p:last-child {
+  color: var(--muted);
 }
 
 .react-flow__node {
@@ -708,16 +719,15 @@ body,
 }
 
 .react-flow__handle {
-  width: 10px;
-  height: 10px;
-  background: #fff;
+  width: 11px;
+  height: 11px;
+  background-color: #fff;
   border: 2px solid var(--accent);
   box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.12);
-  transition: transform 0.12s ease;
 }
 
 .react-flow__handle:hover {
-  transform: scale(1.25);
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.2);
 }
 
 .decision-node .react-flow__handle,
@@ -761,8 +771,19 @@ body,
   fill: var(--danger) !important;
 }
 
-.edge-retry .react-flow__edge-text {
-  fill: var(--warn) !important;
+.react-flow__edge.selected.edge-yes .react-flow__edge-path,
+.react-flow__edge.selectable:focus.edge-yes .react-flow__edge-path {
+  stroke: var(--ok);
+}
+
+.react-flow__edge.selected.edge-no .react-flow__edge-path,
+.react-flow__edge.selectable:focus.edge-no .react-flow__edge-path {
+  stroke: var(--danger);
+}
+
+.react-flow__edge.selected.edge-retry .react-flow__edge-path,
+.react-flow__edge.selectable:focus.edge-retry .react-flow__edge-path {
+  stroke: var(--warn);
 }
 
 .react-flow__controls {
