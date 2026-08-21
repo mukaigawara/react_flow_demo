@@ -39,10 +39,10 @@ type DecisionFlowNode = Node<DecisionData, 'decision'>
 type FlowNode = SwimlaneNode | ProcessNode | DecisionFlowNode
 type FlowEdge = Edge & { pathOptions?: SmoothStepPathOptions }
 
-const LANE_W = 360
-const LANE_H = 1140
-const LANE_GAP = 100
-const HEADER_Y = 88
+const LANE_W = 380
+const LANE_H = 1160
+const LANE_GAP = 120
+const HEADER_Y = 92
 const NODE_GAP = 56
 const PROCESS_W = 232
 const PROCESS_H = 52
