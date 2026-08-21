@@ -9,6 +9,7 @@ import {
   useEdgesState,
   useReactFlow,
   addEdge,
+  applyNodeChanges,
   reconnectEdge,
   Panel,
   Handle,
@@ -22,6 +23,7 @@ import {
   type NodeProps,
   type NodeTypes,
   type OnBeforeDelete,
+  type OnNodesChange,
 } from '@xyflow/react'
 
 type LaneTone = 'frontend' | 'backend' | 'database' | 'ops' | 'other'
@@ -594,24 +596,41 @@ function withLaneColumns(nodes: FlowNode[]): FlowNode[] {
     .filter(isSwimlane)
     .slice()
     .sort((a, b) => a.position.x - b.position.x)
-  const width = lanes.reduce(
-    (max, lane) => Math.max(max, lane.position.x + laneWidth(lane)),
-    0,
-  )
   const height = lanes.reduce(
     (max, lane) => Math.max(max, Number(lane.style?.height ?? LANE_H)),
     LANE_H,
   )
+  const laneIds = new Set(lanes.map((lane) => lane.id))
 
-  return nodes.map((node) => {
-    if (isSwimlaneFrame(node)) {
-      return { ...node, style: { ...node.style, width, height } }
-    }
-    if (!isSwimlane(node)) return node
-    const index = lanes.findIndex((lane) => lane.id === node.id)
-    const column = index === 0 ? 'first' : index === lanes.length - 1 ? 'last' : 'middle'
-    return { ...node, className: `swimlane-column swimlane-column--${column}` }
-  })
+  return nodes
+    .filter(
+      (node) =>
+        isSwimlaneFrame(node) ||
+        isSwimlane(node) ||
+        !node.parentId ||
+        laneIds.has(node.parentId),
+    )
+    .map((node) => {
+      if (isSwimlaneFrame(node)) {
+        return {
+          ...node,
+          style: { ...node.style, width: lanes.length * LANE_W, height },
+        }
+      }
+      if (!isSwimlane(node)) return node
+      const index = lanes.findIndex((lane) => lane.id === node.id)
+      const column =
+        index === 0 ? 'first' : index === lanes.length - 1 ? 'last' : 'middle'
+      return {
+        ...node,
+        parentId: SWIMLANE_FRAME_ID,
+        extent: 'parent',
+        position: { x: index * LANE_W, y: 0 },
+        style: { ...node.style, width: LANE_W, height },
+        draggable: false,
+        className: `swimlane-column swimlane-column--${column}`,
+      }
+    })
 }
 
 function nodeSize(node: FlowNode) {
@@ -737,8 +756,8 @@ function nodeColor(node: Node) {
 }
 
 function SwimLaneEditor() {
-  const { fitView, deleteElements } = useReactFlow<FlowNode, FlowEdge>()
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
+  const { fitView } = useReactFlow<FlowNode, FlowEdge>()
+  const [nodes, setNodes] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState<FlowEdge>(initialEdges)
 
   const selectedNodes = nodes.filter((node) => node.selected)
@@ -752,6 +771,22 @@ function SwimLaneEditor() {
   const selectedItems = selectedNodes.filter((node) => node.type !== 'swimlane')
   const canConnect = selectedItems.length === 2
   const canDelete = selectedNodes.length > 0 || selectedEdges.length > 0
+
+  const onNodesChange = useCallback<OnNodesChange<FlowNode>>(
+    (changes) => {
+      setNodes((current) => {
+        const allowedChanges = changes.filter((change) => {
+          if (change.type === 'add') return true
+          const node = current.find((item) => item.id === change.id)
+          if (!node) return false
+          if (isSwimlaneFrame(node)) return change.type === 'dimensions'
+          return !(isSwimlane(node) && change.type === 'position')
+        })
+        return withLaneColumns(applyNodeChanges(allowedChanges, current))
+      })
+    },
+    [setNodes],
+  )
 
   const onConnect = useCallback(
     (params: Connection) =>
@@ -819,7 +854,7 @@ function SwimLaneEditor() {
       const nextLane: SwimlaneNode = {
         ...lane(`lane-${crypto.randomUUID()}`, label, tone, x),
         selected: true,
-        style: { width: LANE_W, height: 520 },
+        style: { width: LANE_W, height: LANE_H },
       }
 
       return withLaneColumns([
@@ -869,7 +904,7 @@ function SwimLaneEditor() {
         const needed = y + h + 56
         const currentHeight = Number(parent.style?.height ?? LANE_H)
 
-        return [
+        return withLaneColumns([
           ...working.map((node) => {
             if (node.id === parent.id) {
               return {
@@ -884,7 +919,7 @@ function SwimLaneEditor() {
             return { ...node, selected: false }
           }),
           nextNode,
-        ]
+        ])
       })
     },
     [setNodes],
@@ -914,15 +949,27 @@ function SwimLaneEditor() {
   }, [scheduleFitView, setEdges, setNodes])
 
   const removeSelected = useCallback(() => {
-    const extraChildren = nodes.filter(
-      (node) =>
-        node.parentId && selectedNodes.some((item) => item.id === node.parentId),
+    const selectedIds = new Set(selectedNodes.map((node) => node.id))
+    const removingIds = new Set(
+      nodes
+        .filter(
+          (node) => selectedIds.has(node.id) || (node.parentId && selectedIds.has(node.parentId)),
+        )
+        .map((node) => node.id),
     )
-    void deleteElements({
-      nodes: [...selectedNodes, ...extraChildren],
-      edges: selectedEdges,
-    })
-  }, [deleteElements, nodes, selectedEdges, selectedNodes])
+
+    setNodes((current) =>
+      withLaneColumns(current.filter((node) => !removingIds.has(node.id))),
+    )
+    setEdges((current) =>
+      current.filter(
+        (edge) =>
+          !selectedEdges.some((item) => item.id === edge.id) &&
+          !removingIds.has(edge.source) &&
+          !removingIds.has(edge.target),
+      ),
+    )
+  }, [nodes, selectedEdges, selectedNodes, setEdges, setNodes])
 
   const reset = useCallback(() => {
     const graph = cloneGraph()
