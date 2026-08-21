@@ -40,7 +40,7 @@ type FlowEdge = Edge
 type HandleId = 'top' | 'right' | 'bottom' | 'left'
 
 const LANE_W = 380
-const LANE_H = 1160
+const LANE_H = 920
 const LANE_GAP = 120
 const HEADER_Y = 92
 const NODE_GAP = 56
@@ -444,43 +444,16 @@ const initialNodes: FlowNode[] = [
     'lane-frontend',
     alignCenterY(224, DECISION_H, PROCESS_H),
   ),
-  process(
-    'fe-fail-abn',
-    '失敗処理',
-    'frontend',
-    'lane-frontend',
-    alignCenterY(576, DECISION_H, PROCESS_H),
-  ),
-  process(
-    'fe-success',
-    '成功処理',
-    'frontend',
-    'lane-frontend',
-    alignCenterY(900, DECISION_H, PROCESS_H),
-  ),
+  process('fe-success', '成功処理', 'frontend', 'lane-frontend', 764),
 
   process('be-recv', '受信要求', 'backend', 'lane-backend', 104),
   decision('be-parse', '解析要求', 'backend', 'lane-backend', 224),
   process('be-dbreq', 'データベースと接続を要求', 'backend', 'lane-backend', 448),
-  process(
-    'be-error',
-    '異常処理',
-    'backend',
-    'lane-backend',
-    alignCenterY(576, DECISION_H, PROCESS_H),
-  ),
-  process(
-    'be-data',
-    'データ解析',
-    'backend',
-    'lane-backend',
-    alignCenterY(900, DECISION_H, PROCESS_H),
-  ),
+  process('be-data', 'データ解析', 'backend', 'lane-backend', 764),
 
   process('db-recv', '受信要求', 'database', 'lane-database', 448),
   decision('db-accept', '要求の受理', 'database', 'lane-database', 576),
-  process('db-sql', 'SQL文を実行する', 'database', 'lane-database', 780),
-  decision('db-result', '実行結果', 'database', 'lane-database', 900),
+  process('db-sql', 'SQL文を実行する', 'database', 'lane-database', 764),
 ]
 
 function laneEdge(
@@ -561,14 +534,6 @@ const initialEdges: FlowEdge[] = [
     sourceHandle: 'bottom',
     targetHandle: 'top',
   }),
-  laneEdge('e-accept-fail', 'db-accept', 'be-error', {
-    sourceHandle: 'left',
-    targetHandle: 'right',
-    label: '失敗',
-    className: 'edge-no',
-    markerEnd: arrowNo,
-    style: { stroke: '#c24155', strokeWidth: 2 },
-  }),
   laneEdge('e-accept-ok', 'db-accept', 'db-sql', {
     sourceHandle: 'bottom',
     targetHandle: 'top',
@@ -578,34 +543,9 @@ const initialEdges: FlowEdge[] = [
     markerEnd: arrowYes,
     style: { stroke: '#1a7a70', strokeWidth: 2 },
   }),
-  laneEdge('e-sql-result', 'db-sql', 'db-result', {
-    sourceHandle: 'bottom',
-    targetHandle: 'top',
-  }),
-  laneEdge('e-result-fail', 'db-result', 'be-error', {
+  laneEdge('e-sql-data', 'db-sql', 'be-data', {
     sourceHandle: 'left',
     targetHandle: 'right',
-    label: '失敗',
-    className: 'edge-no',
-    markerEnd: arrowNo,
-    style: { stroke: '#c24155', strokeWidth: 2 },
-  }),
-  laneEdge('e-result-ok', 'db-result', 'be-data', {
-    sourceHandle: 'left',
-    targetHandle: 'right',
-    label: '成功',
-    className: 'edge-yes',
-    animated: true,
-    markerEnd: arrowYes,
-    style: { stroke: '#1a7a70', strokeWidth: 2 },
-  }),
-  laneEdge('e-error-fe', 'be-error', 'fe-fail-abn', {
-    sourceHandle: 'left',
-    targetHandle: 'right',
-    label: '異常情報を返す',
-    className: 'edge-no',
-    markerEnd: arrowNo,
-    style: { stroke: '#c24155', strokeWidth: 2 },
   }),
   laneEdge('e-data-fe', 'be-data', 'fe-success', {
     sourceHandle: 'left',
@@ -725,17 +665,17 @@ function cloneGraph() {
 function nodeColor(node: Node) {
   const tone = (node.data as { tone?: LaneTone } | undefined)?.tone
   if (node.type === 'swimlane') {
-    if (tone === 'frontend') return '#e8eef4'
-    if (tone === 'backend') return '#f0ebe4'
-    if (tone === 'database') return '#f0e8ec'
-    if (tone === 'ops') return '#e5efe9'
-    if (tone === 'other') return '#eceaf3'
+    if (tone === 'frontend') return '#d5e4f6'
+    if (tone === 'backend') return '#f3e0c4'
+    if (tone === 'database') return '#f3d4e4'
+    if (tone === 'ops') return '#cfe8dc'
+    if (tone === 'other') return '#e0d7f4'
   }
-  if (tone === 'frontend') return '#5a7a9a'
-  if (tone === 'backend') return '#9a7a58'
-  if (tone === 'database') return '#9a6f84'
-  if (tone === 'ops') return '#5e8a76'
-  if (tone === 'other') return '#7574a0'
+  if (tone === 'frontend') return '#2563eb'
+  if (tone === 'backend') return '#d97706'
+  if (tone === 'database') return '#db2777'
+  if (tone === 'ops') return '#059669'
+  if (tone === 'other') return '#7c3aed'
   return '#64748b'
 }
 
