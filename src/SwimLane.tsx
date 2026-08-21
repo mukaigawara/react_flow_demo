@@ -1152,7 +1152,7 @@ function SwimLaneEditor() {
             className="selection-sheet"
             onPointerDown={(event) => event.stopPropagation()}
           >
-            <label className="flow-field selection-sheet__name">
+            <label className="selection-sheet__name">
               {selectedEdge ? '線のラベル' : '名前'}
               <input
                 className="nodrag nopan"

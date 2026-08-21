@@ -184,6 +184,11 @@ body,
   align-items: center;
   gap: 10px;
   min-width: 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .selection-sheet__name input {
