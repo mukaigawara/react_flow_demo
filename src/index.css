@@ -117,7 +117,6 @@ body,
 }
 
 .react-flow {
-  --xy-background-color: transparent;
   --xy-node-border: none;
   --xy-node-background-color: transparent;
   --xy-node-border-radius: 14px;
@@ -136,9 +135,6 @@ body,
   --xy-controls-button-background-color-hover-default: var(--accent-soft);
   --xy-controls-button-border-color-default: var(--line);
   --xy-attribution-background-color-default: transparent;
-  background:
-    radial-gradient(1200px 520px at 50% -10%, #f8fafc 0%, transparent 70%),
-    var(--canvas);
 }
 
 .flow-panel {
@@ -607,12 +603,6 @@ body,
   background: transparent;
   box-shadow: none;
   text-align: center;
-}
-
-.swimlane-flow.react-flow {
-  background:
-    radial-gradient(1000px 460px at 50% -12%, #fafbfc 0%, transparent 70%),
-    #f3f4f6;
 }
 
 .swimlane-flow .decision-node {
