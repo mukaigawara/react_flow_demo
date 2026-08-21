@@ -23,6 +23,7 @@ import {
   type NodeProps,
   type NodeTypes,
   type OnBeforeDelete,
+  type OnNodeDrag,
   type OnNodesChange,
 } from '@xyflow/react'
 
@@ -425,7 +426,6 @@ function process(
     id,
     type: 'process',
     parentId,
-    extent: 'parent',
     position: { x: laneInnerX(LANE_W, PROCESS_W), y },
     data: { label, tone },
     style: { width: PROCESS_W, height: PROCESS_H },
@@ -443,7 +443,6 @@ function decision(
     id,
     type: 'decision',
     parentId,
-    extent: 'parent',
     position: { x: laneInnerX(LANE_W, DECISION_W), y },
     data: { label, tone },
     style: { width: DECISION_W, height: DECISION_H },
@@ -591,6 +590,10 @@ function isEditableFlowNode(
   return !isSwimlaneFrame(node)
 }
 
+function isLaneChild(node: FlowNode): node is ProcessNode | DecisionFlowNode {
+  return !isSwimlaneFrame(node) && !isSwimlane(node)
+}
+
 function withLaneColumns(nodes: FlowNode[]): FlowNode[] {
   const lanes = nodes
     .filter(isSwimlane)
@@ -617,7 +620,7 @@ function withLaneColumns(nodes: FlowNode[]): FlowNode[] {
           style: { ...node.style, width: lanes.length * LANE_W, height },
         }
       }
-      if (!isSwimlane(node)) return node
+      if (!isSwimlane(node)) return { ...node, extent: undefined }
       const index = lanes.findIndex((lane) => lane.id === node.id)
       const column =
         index === 0 ? 'first' : index === lanes.length - 1 ? 'last' : 'middle'
@@ -636,6 +639,10 @@ function withLaneColumns(nodes: FlowNode[]): FlowNode[] {
 function nodeSize(node: FlowNode) {
   if (node.type === 'decision') return { w: DECISION_W, h: DECISION_H }
   return { w: PROCESS_W, h: PROCESS_H }
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max)
 }
 
 function laneWidth(node: FlowNode) {
@@ -783,6 +790,54 @@ function SwimLaneEditor() {
           return !(isSwimlane(node) && change.type === 'position')
         })
         return withLaneColumns(applyNodeChanges(allowedChanges, current))
+      })
+    },
+    [setNodes],
+  )
+
+  const onNodeDragStop = useCallback<OnNodeDrag<FlowNode>>(
+    (_event, draggedNode) => {
+      if (!isLaneChild(draggedNode)) return
+
+      setNodes((current) => {
+        const node = current.find((item) => item.id === draggedNode.id)
+        if (!node || !isLaneChild(node)) return current
+
+        const lanes = current.filter(isSwimlane)
+        const currentLane = lanes.find((lane) => lane.id === node.parentId)
+        if (!currentLane) return current
+
+        const { w, h } = nodeSize(node)
+        const absoluteX = currentLane.position.x + draggedNode.position.x
+        const absoluteY = currentLane.position.y + draggedNode.position.y
+        const centerX = absoluteX + w / 2
+        const targetLane =
+          lanes.find(
+            (lane) =>
+              centerX >= lane.position.x &&
+              centerX <= lane.position.x + laneWidth(lane),
+          ) ?? currentLane
+        const targetHeight = Number(targetLane.style?.height ?? LANE_H)
+
+        return withLaneColumns(
+          current.map((item) =>
+            item.id === node.id
+              ? {
+                  ...node,
+                  parentId: targetLane.id,
+                  position: {
+                    x: clamp(
+                      absoluteX - targetLane.position.x,
+                      24,
+                      LANE_W - w - 24,
+                    ),
+                    y: clamp(absoluteY, HEADER_Y, targetHeight - h - 24),
+                  },
+                  data: { ...node.data, tone: targetLane.data.tone },
+                }
+              : item,
+          ),
+        )
       })
     },
     [setNodes],
@@ -1057,6 +1112,7 @@ function SwimLaneEditor() {
       nodes={nodes}
       edges={edges}
       onNodesChange={onNodesChange}
+      onNodeDragStop={onNodeDragStop}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
       onReconnect={onReconnect}
