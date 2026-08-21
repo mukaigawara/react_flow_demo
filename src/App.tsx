@@ -20,7 +20,10 @@ export default function App() {
   return (
     <div className="app">
       <nav className="app-nav">
-        <p className="app-nav__brand">React Flow サンプル</p>
+        <p className="app-nav__brand">
+          <span className="app-nav__logo" aria-hidden />
+          React Flow サンプル
+        </p>
         <div className="app-nav__links">
           <a
             href="#/"
