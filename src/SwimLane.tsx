@@ -462,12 +462,12 @@ const initialNodes: FlowNode[] = withLaneColumns([
     'lane-frontend',
     alignCenterY(224, DECISION_H, PROCESS_H),
   ),
-  process('fe-success', '成功処理', 'frontend', 'lane-frontend', 764),
+  process('fe-success', '成功処理', 'frontend', 'lane-frontend', 800),
 
   process('be-recv', '受信要求', 'backend', 'lane-backend', 104),
   decision('be-parse', '解析要求', 'backend', 'lane-backend', 224),
   process('be-dbreq', 'データベースと接続を要求', 'backend', 'lane-backend', 448),
-  process('be-data', 'データ解析', 'backend', 'lane-backend', 764),
+  process('be-data', 'データ解析', 'backend', 'lane-backend', 800),
 
   process('db-recv', '受信要求', 'database', 'lane-database', 448),
   decision('db-accept', '要求の受理', 'database', 'lane-database', 576),
