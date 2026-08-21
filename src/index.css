@@ -802,28 +802,29 @@ body,
 .swimlane-node__title {
   position: relative;
   z-index: 3;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 10px;
-  padding: 20px 22px 17px;
-  font-size: 13px;
+  gap: 8px;
+  margin: 18px 18px 0;
+  padding: 8px 12px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.04em;
   color: var(--ink-2);
-  background: color-mix(in srgb, var(--lane-accent) 9%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--lane-accent) 18%, transparent);
-  border-radius: 8px 8px 0 0;
-  backdrop-filter: blur(12px) saturate(1.25);
+  background: color-mix(in srgb, var(--lane-accent) 13%, rgba(255, 255, 255, 0.58));
+  border: 1px solid color-mix(in srgb, var(--lane-accent) 28%, rgba(255, 255, 255, 0.68));
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(10px) saturate(1.2);
 }
 
 .swimlane-node__title::before {
   content: '';
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--lane-accent);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--lane-accent) 14%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lane-accent) 14%, transparent);
 }
 
 .swimlane-node--frontend {
