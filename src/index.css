@@ -236,23 +236,23 @@ body,
 }
 
 .tone-swatch--frontend {
-  background: #5a7a9a;
+  background: #2563eb;
 }
 
 .tone-swatch--backend {
-  background: #9a7a58;
+  background: #d97706;
 }
 
 .tone-swatch--database {
-  background: #9a6f84;
+  background: #db2777;
 }
 
 .tone-swatch--ops {
-  background: #5e8a76;
+  background: #059669;
 }
 
 .tone-swatch--other {
-  background: #7574a0;
+  background: #7c3aed;
 }
 
 .tone-swatch--default {
@@ -660,6 +660,7 @@ body,
   box-shadow: 0 12px 26px rgba(234, 88, 12, 0.28),
     inset 0 1px 0 rgba(255, 255, 255, 0.35);
   transform: rotate(45deg);
+  transition: background 0.18s ease, box-shadow 0.18s ease;
 }
 
 .decision-diamond span,
@@ -678,35 +679,35 @@ body,
 }
 
 .decision-diamond--frontend {
-  background: #ffffff;
+  background: #dbeafe;
   box-shadow:
     0 0 0 2px #3b82f6,
     0 8px 20px rgba(37, 99, 235, 0.12);
 }
 
 .decision-diamond--backend {
-  background: #ffffff;
+  background: #ffedd5;
   box-shadow:
     0 0 0 2px #f59e0b,
     0 8px 20px rgba(217, 119, 6, 0.12);
 }
 
 .decision-diamond--database {
-  background: #ffffff;
+  background: #fce7f3;
   box-shadow:
     0 0 0 2px #ec4899,
     0 8px 20px rgba(219, 39, 119, 0.12);
 }
 
 .decision-diamond--ops {
-  background: #ffffff;
+  background: #d1fae5;
   box-shadow:
     0 0 0 2px #10b981,
     0 8px 20px rgba(5, 150, 105, 0.12);
 }
 
 .decision-diamond--other {
-  background: #ffffff;
+  background: #ede9fe;
   box-shadow:
     0 0 0 2px #8b5cf6,
     0 8px 20px rgba(124, 58, 237, 0.12);
@@ -784,6 +785,7 @@ body,
   border: 1px solid var(--lane-border);
   background: var(--lane-fill);
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .swimlane-node__title {
@@ -799,6 +801,7 @@ body,
   border-bottom: 1px solid var(--lane-border);
   background: var(--lane-header);
   border-radius: 17px 17px 0 0;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
 }
 
 .swimlane-node__title::before {
@@ -867,11 +870,12 @@ body,
   text-align: center;
   font-size: 13px;
   font-weight: 700;
-  color: var(--ink);
-  background: var(--surface);
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  color: var(--tone-title, var(--ink));
+  background: var(--tone-fill, var(--surface));
+  border: 1px solid var(--tone-border, rgba(15, 23, 42, 0.08));
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 8px 18px rgba(15, 23, 42, 0.05);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease,
+    background 0.18s ease, color 0.18s ease;
 }
 
 .process-node::before {
@@ -888,22 +892,37 @@ body,
 
 .process-node--frontend {
   --tone: #2563eb;
+  --tone-fill: #dbeafe;
+  --tone-border: #93c5fd;
+  --tone-title: #1e40af;
 }
 
 .process-node--backend {
   --tone: #d97706;
+  --tone-fill: #ffedd5;
+  --tone-border: #fdba74;
+  --tone-title: #92400e;
 }
 
 .process-node--database {
   --tone: #db2777;
+  --tone-fill: #fce7f3;
+  --tone-border: #f9a8d4;
+  --tone-title: #9d174d;
 }
 
 .process-node--ops {
   --tone: #059669;
+  --tone-fill: #d1fae5;
+  --tone-border: #6ee7b7;
+  --tone-title: #065f46;
 }
 
 .process-node--other {
   --tone: #7c3aed;
+  --tone-fill: #ede9fe;
+  --tone-border: #c4b5fd;
+  --tone-title: #5b21b6;
 }
 
 .react-flow__node-process.selected .process-node,
