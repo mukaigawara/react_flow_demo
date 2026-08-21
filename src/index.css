@@ -1,0 +1,127 @@
+:root {
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  color: #0f172a;
+  background: #f8fafc;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+html,
+body,
+#root,
+.app {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.app {
+  min-height: 100svh;
+}
+
+.flow-panel {
+  margin: 16px;
+  max-width: 320px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  pointer-events: none;
+}
+
+.flow-kicker {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6366f1;
+}
+
+.flow-panel h1 {
+  margin: 0 0 8px;
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.flow-panel p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #475569;
+}
+
+.react-flow__node {
+  font-weight: 600;
+}
+
+.react-flow__node-input,
+.react-flow__node-default,
+.react-flow__node-output {
+  border-radius: 10px;
+  padding: 2px;
+}
+
+.react-flow__node-input .react-flow__handle,
+.react-flow__node-default .react-flow__handle,
+.react-flow__node-output .react-flow__handle {
+  width: 8px;
+  height: 8px;
+}
+
+.node-start {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+  color: #fff !important;
+  border: none !important;
+}
+
+.node-done {
+  background: linear-gradient(135deg, #10b981, #14b8a6) !important;
+  color: #fff !important;
+  border: none !important;
+}
+
+.node-error {
+  background: #fff1f2 !important;
+  border-color: #fb7185 !important;
+  color: #be123c !important;
+}
+
+.decision-node {
+  width: 150px;
+  height: 150px;
+  display: grid;
+  place-items: center;
+}
+
+.decision-diamond {
+  width: 108px;
+  height: 108px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  box-shadow: 0 10px 24px rgba(249, 115, 22, 0.28);
+  transform: rotate(45deg);
+}
+
+.decision-diamond span {
+  width: 92px;
+  text-align: center;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  transform: rotate(-45deg);
+}
+
+.edge-yes .react-flow__edge-text,
+.edge-no .react-flow__edge-text,
+.edge-retry .react-flow__edge-text {
+  font-weight: 700;
+}
+
+.react-flow__attribution {
+  background: transparent !important;
+}
