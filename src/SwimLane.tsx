@@ -133,10 +133,30 @@ function ProcessBox({ id, data }: NodeProps<ProcessNode>) {
     <div className={`process-node process-node--${data.tone}`}>
       <Handle type="target" position={Position.Top} id="in-top" />
       <Handle type="source" position={Position.Bottom} id="out-bottom" />
-      <Handle type="target" position={Position.Left} id="in-left" />
-      <Handle type="source" position={Position.Left} id="out-left" />
-      <Handle type="target" position={Position.Right} id="in-right" />
-      <Handle type="source" position={Position.Right} id="out-right" />
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="in-left"
+        style={{ top: '30%' }}
+      />
+      <Handle
+        type="source"
+        position={Position.Left}
+        id="out-left"
+        style={{ top: '70%' }}
+      />
+      <Handle
+        type="target"
+        position={Position.Right}
+        id="in-right"
+        style={{ top: '30%' }}
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="out-right"
+        style={{ top: '70%' }}
+      />
       <EditableLabel
         value={data.label}
         onChange={(label) => updateNodeData(id, { label })}
@@ -151,8 +171,25 @@ function DecisionBox({ id, data }: NodeProps<DecisionFlowNode>) {
   return (
     <div className="decision-node">
       <Handle type="target" position={Position.Top} id="in-top" />
-      <Handle type="source" position={Position.Right} id="out-right" />
+      <Handle
+        type="target"
+        position={Position.Right}
+        id="in-right"
+        style={{ top: '30%' }}
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="out-right"
+        style={{ top: '70%' }}
+      />
       <Handle type="source" position={Position.Bottom} id="out-bottom" />
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="in-left"
+        style={data.dualLeft ? { top: '18%' } : undefined}
+      />
       <Handle
         type="source"
         position={Position.Left}
@@ -419,6 +456,31 @@ function formatNodes(nodes: FlowNode[]): FlowNode[] {
   return formatted
 }
 
+function absolutePosition(nodes: FlowNode[], node: FlowNode) {
+  const parent = node.parentId
+    ? nodes.find((item) => item.id === node.parentId)
+    : undefined
+  return {
+    x: (parent?.position.x ?? 0) + node.position.x,
+    y: (parent?.position.y ?? 0) + node.position.y,
+  }
+}
+
+function connectHandles(nodes: FlowNode[], source: FlowNode, target: FlowNode) {
+  const from = absolutePosition(nodes, source)
+  const to = absolutePosition(nodes, target)
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx >= 0
+      ? { sourceHandle: 'out-right', targetHandle: 'in-left' }
+      : { sourceHandle: 'out-left', targetHandle: 'in-right' }
+  }
+  return dy >= 0
+    ? { sourceHandle: 'out-bottom', targetHandle: 'in-top' }
+    : { sourceHandle: 'in-top', targetHandle: 'out-bottom' }
+}
+
 function cloneGraph() {
   return {
     nodes: structuredClone(initialNodes),
@@ -460,6 +522,8 @@ function SwimLaneEditor() {
   const selectedNode = selectedNodes.length === 1 ? selectedNodes[0] : undefined
   const selectedEdge = selectedEdges.length === 1 ? selectedEdges[0] : undefined
   const targetLane = getTargetLane(nodes)
+  const selectedItems = selectedNodes.filter((node) => node.type !== 'swimlane')
+  const canConnect = selectedItems.length === 2
   const canDelete = selectedNodes.length > 0 || selectedEdges.length > 0
 
   const onConnect = useCallback(
@@ -591,6 +655,23 @@ function SwimLaneEditor() {
     [setNodes],
   )
 
+  const connectSelected = useCallback(() => {
+    if (selectedItems.length !== 2) return
+    const [source, target] = selectedItems
+    setEdges((current) =>
+      addEdge(
+        {
+          source: source.id,
+          target: target.id,
+          ...connectHandles(nodes, source, target),
+          type: 'smoothstep',
+          markerEnd: arrow,
+        },
+        current,
+      ),
+    )
+  }, [nodes, selectedItems, setEdges])
+
   const formatLayout = useCallback(() => {
     setNodes((current) => formatNodes(current))
     setEdges((current) => current.map((edge) => ({ ...edge, selected: false })))
@@ -638,6 +719,7 @@ function SwimLaneEditor() {
       snapToGrid
       snapGrid={[10, 10]}
       deleteKeyCode={['Backspace', 'Delete']}
+      multiSelectionKeyCode={['Shift', 'Control', 'Meta']}
       connectionMode={ConnectionMode.Loose}
       connectionLineType={ConnectionLineType.SmoothStep}
       defaultEdgeOptions={{ type: 'smoothstep', markerEnd: arrow }}
@@ -671,6 +753,9 @@ function SwimLaneEditor() {
           </button>
           <button type="button" onClick={formatLayout}>
             整形
+          </button>
+          <button type="button" onClick={connectSelected} disabled={!canConnect}>
+            線を追加
           </button>
           <button
             type="button"
@@ -713,7 +798,8 @@ function SwimLaneEditor() {
           </label>
         ) : (
           <p className="flow-hint">
-            レーンをクリックしてから処理・判定を追加します。線は端点をドラッグして付け直せます。
+            レーンをクリックしてから処理・判定を追加します。Shift
+            を押しながら 2 つのノードを選んで「線を追加」もできます。
           </p>
         )}
       </Panel>
