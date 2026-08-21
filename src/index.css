@@ -184,7 +184,14 @@ body,
 }
 
 .selection-sheet__name {
-  min-width: 220px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.selection-sheet__name input {
+  width: 220px;
 }
 
 .tone-picker {
