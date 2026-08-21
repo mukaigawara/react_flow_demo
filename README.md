@@ -19,3 +19,15 @@ npm run dev
 npm run build
 npm run preview
 ```
+
+## GitHub Pages
+
+このリポジトリは GitHub Actions で `dist` をビルドし、[GitHub Pages](https://mukaigawara.github.io/react_flow_demo/) へ公開します。
+
+Vite のソース（`index.html` や `.tsx`）をそのまま Pages の配信元にすると、ブラウザが TypeScript を実行できず真っ白になります。Pages の Source は **GitHub Actions** にしてください（Deploy from a branch / `main` 直下ではありません）。
+
+1. このリポジトリの Settings → Pages を開く
+2. Build and deployment の Source を **GitHub Actions** にする
+3. `main` へマージすると workflow がビルドして公開する
+
+ローカル開発時の URL は `http://localhost:5173/react_flow_demo/` です。
