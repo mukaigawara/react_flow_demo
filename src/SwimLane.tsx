@@ -54,6 +54,13 @@ function laneInnerX(laneWidth: number, childWidth: number) {
 }
 
 const TONES: LaneTone[] = ['frontend', 'backend', 'database', 'ops', 'other']
+const TONE_NAMES: Record<LaneTone, string> = {
+  frontend: 'ブルー',
+  backend: 'アンバー',
+  database: 'ローズ',
+  ops: 'グリーン',
+  other: 'パープル',
+}
 const LANE_LABELS = [
   'フロントエンド',
   'バックエンド',
@@ -68,6 +75,40 @@ const arrowNo = { type: MarkerType.ArrowClosed, width: 18, height: 18, color: '#
 const labelBg = {
   fill: '#ffffff',
   fillOpacity: 0.96,
+}
+
+const EDGE_COLORS = [
+  {
+    id: 'default',
+    name: 'グレー',
+    className: undefined as string | undefined,
+    stroke: '#8b93a3',
+    fill: '#5b6370',
+    marker: arrow,
+  },
+  {
+    id: 'yes',
+    name: '成功',
+    className: 'edge-yes',
+    stroke: '#1a7a70',
+    fill: '#1a7a70',
+    marker: arrowYes,
+  },
+  {
+    id: 'no',
+    name: '失敗',
+    className: 'edge-no',
+    stroke: '#c24155',
+    fill: '#c24155',
+    marker: arrowNo,
+  },
+] as const
+type EdgeColorId = (typeof EDGE_COLORS)[number]['id']
+
+function edgeColorId(edge: FlowEdge): EdgeColorId {
+  if (edge.className === 'edge-yes') return 'yes'
+  if (edge.className === 'edge-no') return 'no'
+  return 'default'
 }
 
 const CARDINAL: { id: HandleId; position: Position }[] = [
@@ -173,6 +214,40 @@ function IconReset() {
       <path d="M3.4 8A4.6 4.6 0 1 0 8 3.4H5.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       <path d="M5.2 1.8 3.2 3.4l2 1.6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  )
+}
+
+function ToneSwatches({
+  value,
+  onChange,
+  options,
+  label,
+}: {
+  value: string
+  onChange: (id: string) => void
+  options: { id: string; name: string }[]
+  label: string
+}) {
+  return (
+    <div className="tone-picker">
+      <span className="tone-picker__label">{label}</span>
+      <div className="tone-picker__swatches" role="radiogroup" aria-label={label}>
+        {options.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            role="radio"
+            aria-checked={value === option.id}
+            aria-label={option.name}
+            title={option.name}
+            className={`tone-swatch tone-swatch--${option.id}${
+              value === option.id ? ' is-selected' : ''
+            }`}
+            onClick={() => onChange(option.id)}
+          />
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -802,6 +877,72 @@ function SwimLaneEditor() {
       : selectedEdge
         ? String(selectedEdge.label ?? '')
         : ''
+  const hasSelection = Boolean(selectedNode || selectedEdge)
+
+  const updateSelectedLabel = useCallback(
+    (label: string) => {
+      if (selectedNode) {
+        setNodes((current) =>
+          current.map((node) =>
+            node.id === selectedNode.id
+              ? { ...node, data: { ...node.data, label } }
+              : node,
+          ),
+        )
+      }
+      if (selectedEdge) {
+        setEdges((current) =>
+          current.map((edge) =>
+            edge.id === selectedEdge.id ? { ...edge, label } : edge,
+          ),
+        )
+      }
+    },
+    [selectedEdge, selectedNode, setEdges, setNodes],
+  )
+
+  const updateSelectedTone = useCallback(
+    (tone: LaneTone) => {
+      if (!selectedNode) return
+      setNodes((current) =>
+        current.map((node) =>
+          node.id === selectedNode.id
+            ? { ...node, data: { ...node.data, tone } }
+            : node,
+        ),
+      )
+    },
+    [selectedNode, setNodes],
+  )
+
+  const updateSelectedEdgeColor = useCallback(
+    (id: EdgeColorId) => {
+      if (!selectedEdge) return
+      const appearance = EDGE_COLORS.find((item) => item.id === id)
+      if (!appearance) return
+      setEdges((current) =>
+        current.map((edge) =>
+          edge.id === selectedEdge.id
+            ? {
+                ...edge,
+                className: appearance.className,
+                markerEnd: appearance.marker,
+                style: {
+                  ...edge.style,
+                  stroke: appearance.stroke,
+                  strokeWidth: 2,
+                },
+                labelStyle: {
+                  ...edge.labelStyle,
+                  fill: appearance.fill,
+                },
+              }
+            : edge,
+        ),
+      )
+    },
+    [selectedEdge, setEdges],
+  )
 
   return (
     <ReactFlow<FlowNode, FlowEdge>
@@ -838,47 +979,49 @@ function SwimLaneEditor() {
       <Panel position="top-left" className="flow-panel">
         <p className="flow-kicker">React Flow サンプル</p>
         <h1>スイムレーン</h1>
-        <p>ハンドルをドラッグして線をつなぎます。ダブルクリックで名前を変更できます。</p>
+        <p>
+          ハンドルをドラッグして線をつなぎます。選択すると下のメニューから名前とカラーを変更できます。
+        </p>
       </Panel>
-      <Panel position="top-right" className="flow-panel flow-panel--inspector">
-        {selectedNode || selectedEdge ? (
-          <label className="flow-field">
-            {selectedEdge ? '線のラベル' : '名前'}
-            <input
-              className="nodrag nopan"
-              value={selectedLabel}
-              onChange={(event) => {
-                const label = event.target.value
-                if (selectedNode) {
-                  setNodes((current) =>
-                    current.map((node) =>
-                      node.id === selectedNode.id
-                        ? { ...node, data: { ...node.data, label } }
-                        : node,
-                    ),
-                  )
-                }
-                if (selectedEdge) {
-                  setEdges((current) =>
-                    current.map((edge) =>
-                      edge.id === selectedEdge.id ? { ...edge, label } : edge,
-                    ),
-                  )
-                }
-              }}
-            />
-          </label>
-        ) : (
-          <div className="inspector-empty">
-            <p className="flow-kicker">選択なし</p>
-            <p>
-              レーンをクリックしてから処理・判定を追加します。Shift
-              を押しながら 2 つのノードを選ぶと線でつなげます。
-            </p>
+      <Panel position="bottom-center" className="editor-dock">
+        {hasSelection ? (
+          <div
+            className="selection-sheet"
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <label className="flow-field selection-sheet__name">
+              {selectedEdge ? '線のラベル' : '名前'}
+              <input
+                className="nodrag nopan"
+                value={selectedLabel}
+                onChange={(event) => updateSelectedLabel(event.target.value)}
+              />
+            </label>
+            {selectedNode ? (
+              <ToneSwatches
+                label="カラー"
+                value={selectedNode.data.tone}
+                onChange={(id) => updateSelectedTone(id as LaneTone)}
+                options={TONES.map((tone) => ({
+                  id: tone,
+                  name: TONE_NAMES[tone],
+                }))}
+              />
+            ) : null}
+            {selectedEdge ? (
+              <ToneSwatches
+                label="カラー"
+                value={edgeColorId(selectedEdge)}
+                onChange={(id) => updateSelectedEdgeColor(id as EdgeColorId)}
+                options={EDGE_COLORS.map((item) => ({
+                  id: item.id,
+                  name: item.name,
+                }))}
+              />
+            ) : null}
           </div>
-        )}
-      </Panel>
-      <Panel position="bottom-center" className="editor-bar">
+        ) : null}
+        <div className="editor-bar">
         <div className="editor-bar__target">
           追加先
           <span
@@ -937,6 +1080,7 @@ function SwimLaneEditor() {
             リセット
           </ToolButton>
         </div>
+      </div>
       </Panel>
     </ReactFlow>
   )
