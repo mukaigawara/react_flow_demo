@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -57,7 +57,108 @@ const LANE_LABELS = [
   'その他',
 ]
 
-const arrow = { type: MarkerType.ArrowClosed, width: 18, height: 18 }
+const arrow = { type: MarkerType.ArrowClosed, width: 16, height: 16, color: '#94a3b8' }
+const arrowYes = { type: MarkerType.ArrowClosed, width: 16, height: 16, color: '#0f766e' }
+const arrowNo = { type: MarkerType.ArrowClosed, width: 16, height: 16, color: '#e11d48' }
+
+function IconLane() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <rect x="1.5" y="2.5" width="3.5" height="11" rx="1" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="6.25" y="2.5" width="3.5" height="11" rx="1" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="11" y="2.5" width="3.5" height="11" rx="1" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  )
+}
+
+function IconProcess() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <rect x="2" y="4" width="12" height="8" rx="2" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  )
+}
+
+function IconDecision() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path d="M8 2.5 13.5 8 8 13.5 2.5 8 8 2.5Z" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  )
+}
+
+function IconLink() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M6.5 8.7a3.2 3.2 0 0 0 1.1 1.1l1.7 1.1a2.4 2.4 0 1 0 2.5-4.1L10.6 5.7"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M9.5 7.3a3.2 3.2 0 0 0-1.1-1.1L6.7 5.1a2.4 2.4 0 1 0-2.5 4.1l1.2 1.1"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+function IconLayout() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path d="M3 4.5h10M3 8h7M3 11.5h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function IconTrash() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path d="M3.5 5h9M6 5V3.8A.8.8 0 0 1 6.8 3h2.4a.8.8 0 0 1 .8.8V5m-.8 8h-3.2A1.2 1.2 0 0 1 4.8 12V5h6.4v7a1.2 1.2 0 0 1-1.2 1.2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function IconReset() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path d="M3.4 8A4.6 4.6 0 1 0 8 3.4H5.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M5.2 1.8 3.2 3.4l2 1.6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function ToolButton({
+  children,
+  icon,
+  onClick,
+  disabled,
+  danger,
+  title,
+}: {
+  children: string
+  icon: ReactNode
+  onClick: () => void
+  disabled?: boolean
+  danger?: boolean
+  title?: string
+}) {
+  return (
+    <button
+      type="button"
+      className={danger ? 'tool-btn tool-btn--danger' : 'tool-btn'}
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+    >
+      {icon}
+      <span>{children}</span>
+    </button>
+  )
+}
 
 function EditableLabel({
   value,
@@ -114,7 +215,7 @@ function SwimlaneLane({ id, data, selected }: NodeProps<SwimlaneNode>) {
         isVisible={selected}
         minWidth={220}
         minHeight={280}
-        color="#6366f1"
+        color="#4f46e5"
       />
       <div className="swimlane-node__title">
         <EditableLabel
@@ -298,6 +399,8 @@ function laneEdge(
     label?: string
     className?: string
     animated?: boolean
+    markerEnd?: Edge['markerEnd']
+    style?: Edge['style']
   } = {},
 ): Edge {
   return {
@@ -324,6 +427,8 @@ const initialEdges: Edge[] = [
     targetHandle: 'in-right',
     label: 'リクエスト失敗',
     className: 'edge-no',
+    markerEnd: arrowNo,
+    style: { stroke: '#e11d48', strokeWidth: 2.25 },
   }),
   laneEdge('e-parse-ok', 'be-parse', 'be-dbreq', {
     sourceHandle: 'out-bottom',
@@ -331,6 +436,8 @@ const initialEdges: Edge[] = [
     label: '成功',
     className: 'edge-yes',
     animated: true,
+    markerEnd: arrowYes,
+    style: { stroke: '#0f766e', strokeWidth: 2.25 },
   }),
   laneEdge('e-dbreq-recv', 'be-dbreq', 'db-recv', {
     sourceHandle: 'out-right',
@@ -345,6 +452,8 @@ const initialEdges: Edge[] = [
     targetHandle: 'in-right',
     label: '失敗',
     className: 'edge-no',
+    markerEnd: arrowNo,
+    style: { stroke: '#e11d48', strokeWidth: 2.25 },
   }),
   laneEdge('e-accept-ok', 'db-accept', 'db-sql', {
     sourceHandle: 'out-bottom',
@@ -352,6 +461,8 @@ const initialEdges: Edge[] = [
     label: '成功',
     className: 'edge-yes',
     animated: true,
+    markerEnd: arrowYes,
+    style: { stroke: '#0f766e', strokeWidth: 2.25 },
   }),
   laneEdge('e-sql-result', 'db-sql', 'db-result', {
     sourceHandle: 'out-bottom',
@@ -362,6 +473,8 @@ const initialEdges: Edge[] = [
     targetHandle: 'in-right',
     label: '失敗',
     className: 'edge-no',
+    markerEnd: arrowNo,
+    style: { stroke: '#e11d48', strokeWidth: 2.25 },
   }),
   laneEdge('e-result-ok', 'db-result', 'be-data', {
     sourceHandle: 'out-left-bottom',
@@ -369,18 +482,24 @@ const initialEdges: Edge[] = [
     label: '成功',
     className: 'edge-yes',
     animated: true,
+    markerEnd: arrowYes,
+    style: { stroke: '#0f766e', strokeWidth: 2.25 },
   }),
   laneEdge('e-error-fe', 'be-error', 'fe-fail-abn', {
     sourceHandle: 'out-left',
     targetHandle: 'in-right',
     label: '異常情報を返す',
     className: 'edge-no',
+    markerEnd: arrowNo,
+    style: { stroke: '#e11d48', strokeWidth: 2.25 },
   }),
   laneEdge('e-data-fe', 'be-data', 'fe-success', {
     sourceHandle: 'out-left',
     targetHandle: 'in-right',
     label: '返却データ情報',
     className: 'edge-yes',
+    markerEnd: arrowYes,
+    style: { stroke: '#0f766e', strokeWidth: 2.25 },
   }),
 ]
 
@@ -492,23 +611,16 @@ function nodeColor(node: Node) {
   const tone = (node.data as { tone?: LaneTone } | undefined)?.tone
   if (node.type === 'swimlane') {
     if (tone === 'frontend') return '#bfdbfe'
-    if (tone === 'backend') return '#fef08a'
+    if (tone === 'backend') return '#fde68a'
     if (tone === 'database') return '#fbcfe8'
     if (tone === 'ops') return '#bbf7d0'
     if (tone === 'other') return '#ddd6fe'
   }
-  if (node.type === 'decision') {
-    if (tone === 'frontend') return '#3b82f6'
-    if (tone === 'backend') return '#eab308'
-    if (tone === 'database') return '#ec4899'
-    if (tone === 'ops') return '#16a34a'
-    if (tone === 'other') return '#7c3aed'
-  }
-  if (tone === 'frontend') return '#60a5fa'
-  if (tone === 'backend') return '#facc15'
-  if (tone === 'database') return '#f9a8d4'
-  if (tone === 'ops') return '#4ade80'
-  if (tone === 'other') return '#a78bfa'
+  if (tone === 'frontend') return '#2563eb'
+  if (tone === 'backend') return '#d97706'
+  if (tone === 'database') return '#db2777'
+  if (tone === 'ops') return '#059669'
+  if (tone === 'other') return '#7c3aed'
   return '#64748b'
 }
 
@@ -715,6 +827,7 @@ function SwimLaneEditor() {
       isValidConnection={isValidConnection}
       nodeTypes={nodeTypes}
       fitView
+      fitViewOptions={{ padding: 0.16 }}
       minZoom={0.3}
       snapToGrid
       snapGrid={[10, 10]}
@@ -726,49 +839,15 @@ function SwimLaneEditor() {
       edgesReconnectable
       attributionPosition="bottom-left"
     >
-      <Background variant={BackgroundVariant.Dots} gap={18} size={1} />
-      <MiniMap nodeColor={nodeColor} pannable zoomable />
-      <Controls />
+      <Background variant={BackgroundVariant.Dots} gap={22} size={1.4} color="#c5cddb" />
+      <MiniMap nodeColor={nodeColor} pannable zoomable maskColor="rgba(18, 21, 28, 0.08)" />
+      <Controls showInteractive={false} />
       <Panel position="top-left" className="flow-panel">
         <p className="flow-kicker">React Flow サンプル</p>
         <h1>スイムレーン</h1>
-        <p>
-          ハンドルをドラッグして線をつなぎます。ダブルクリックで名前を変更できます。
-        </p>
+        <p>ハンドルをドラッグして線をつなぎます。ダブルクリックで名前を変更できます。</p>
       </Panel>
-      <Panel position="top-right" className="flow-panel flow-panel--editor">
-        <p className="flow-kicker">編集</p>
-        <p className="flow-hint">
-          追加先: <strong>{targetLane?.data.label ?? 'レーンを追加'}</strong>
-        </p>
-        <div className="flow-toolbar">
-          <button type="button" onClick={addLane}>
-            レーンを追加
-          </button>
-          <button type="button" onClick={() => addChild('process')}>
-            処理を追加
-          </button>
-          <button type="button" onClick={() => addChild('decision')}>
-            判定を追加
-          </button>
-          <button type="button" onClick={formatLayout}>
-            整形
-          </button>
-          <button type="button" onClick={connectSelected} disabled={!canConnect}>
-            線を追加
-          </button>
-          <button
-            type="button"
-            className="danger"
-            onClick={removeSelected}
-            disabled={!canDelete}
-          >
-            削除
-          </button>
-          <button type="button" onClick={reset}>
-            リセット
-          </button>
-        </div>
+      <Panel position="top-right" className="flow-panel flow-panel--inspector">
         {selectedNode || selectedEdge ? (
           <label className="flow-field">
             {selectedEdge ? '線のラベル' : '名前'}
@@ -797,11 +876,74 @@ function SwimLaneEditor() {
             />
           </label>
         ) : (
-          <p className="flow-hint">
-            レーンをクリックしてから処理・判定を追加します。Shift
-            を押しながら 2 つのノードを選んで「線を追加」もできます。
-          </p>
+          <div className="inspector-empty">
+            <p className="flow-kicker">選択なし</p>
+            <p>
+              レーンをクリックしてから処理・判定を追加します。Shift
+              を押しながら 2 つのノードを選ぶと線でつなげます。
+            </p>
+          </div>
         )}
+      </Panel>
+      <Panel position="bottom-center" className="editor-bar">
+        <div className="editor-bar__target">
+          追加先
+          <span
+            className={`lane-chip${targetLane ? ` lane-chip--${targetLane.data.tone}` : ''}`}
+          >
+            {targetLane?.data.label ?? 'レーンを追加'}
+          </span>
+        </div>
+        <div className="editor-group editor-group--add" aria-label="ノードを追加">
+          <ToolButton icon={<IconLane />} onClick={addLane} title="新しいレーンを右端に追加">
+            レーン
+          </ToolButton>
+          <ToolButton
+            icon={<IconProcess />}
+            onClick={() => addChild('process')}
+            title="選択中のレーンに処理を追加"
+          >
+            処理
+          </ToolButton>
+          <ToolButton
+            icon={<IconDecision />}
+            onClick={() => addChild('decision')}
+            title="選択中のレーンに判定を追加"
+          >
+            判定
+          </ToolButton>
+        </div>
+        <div className="editor-group" aria-label="接続と配置">
+          <ToolButton
+            icon={<IconLink />}
+            onClick={connectSelected}
+            disabled={!canConnect}
+            title={
+              canConnect
+                ? '選択した 2 つのノードを接続'
+                : 'Shift を押しながら 2 つのノードを選択'
+            }
+          >
+            線を追加
+          </ToolButton>
+          <ToolButton icon={<IconLayout />} onClick={formatLayout} title="レーンとノードを整列">
+            整形
+          </ToolButton>
+        </div>
+        <div className="editor-group editor-group--danger" aria-label="削除とリセット">
+          <ToolButton
+            icon={<IconTrash />}
+            onClick={removeSelected}
+            disabled={!canDelete}
+            danger
+            title={canDelete ? '選択中の要素を削除' : '削除する要素を選択'}
+          >
+            削除
+          </ToolButton>
+          <ToolButton icon={<IconReset />} onClick={reset} title="初期状態に戻す">
+            リセット
+          </ToolButton>
+        </div>
       </Panel>
     </ReactFlow>
   )
