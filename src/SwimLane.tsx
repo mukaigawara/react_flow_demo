@@ -16,7 +16,6 @@ import {
   MarkerType,
   ConnectionMode,
   ConnectionLineType,
-  NodeResizer,
   type Node,
   type Edge,
   type Connection,
@@ -28,19 +27,22 @@ import {
 type LaneTone = 'frontend' | 'backend' | 'database' | 'ops' | 'other'
 
 type SwimlaneData = { label: string; tone: LaneTone }
+type SwimlaneFrameData = Record<string, never>
 type ProcessData = { label: string; tone: LaneTone }
 type DecisionData = { label: string; tone: LaneTone }
 
+type SwimlaneFrameNode = Node<SwimlaneFrameData, 'swimlane-frame'>
 type SwimlaneNode = Node<SwimlaneData, 'swimlane'>
 type ProcessNode = Node<ProcessData, 'process'>
 type DecisionFlowNode = Node<DecisionData, 'decision'>
-type FlowNode = SwimlaneNode | ProcessNode | DecisionFlowNode
+type FlowNode = SwimlaneFrameNode | SwimlaneNode | ProcessNode | DecisionFlowNode
 type FlowEdge = Edge
 type HandleId = 'top' | 'right' | 'bottom' | 'left'
 
 const LANE_W = 380
 const LANE_H = 920
 const LANE_GAP = 0
+const SWIMLANE_FRAME_ID = 'swimlane-frame'
 const HEADER_Y = 92
 const NODE_GAP = 56
 const PROCESS_W = 232
@@ -325,17 +327,11 @@ function EditableLabel({
   )
 }
 
-function SwimlaneLane({ id, data, selected }: NodeProps<SwimlaneNode>) {
+function SwimlaneLane({ id, data }: NodeProps<SwimlaneNode>) {
   const { updateNodeData } = useReactFlow()
 
   return (
     <div className={`swimlane-node swimlane-node--${data.tone}`}>
-      <NodeResizer
-        isVisible={selected}
-        minWidth={280}
-        minHeight={360}
-        color="#818cf8"
-      />
       <div className="swimlane-node__title">
         <EditableLabel
           value={data.label}
@@ -344,6 +340,10 @@ function SwimlaneLane({ id, data, selected }: NodeProps<SwimlaneNode>) {
       </div>
     </div>
   )
+}
+
+function SwimlaneFrame() {
+  return <div className="swimlane-frame" />
 }
 
 function ProcessBox({ id, data }: NodeProps<ProcessNode>) {
@@ -377,19 +377,37 @@ function DecisionBox({ id, data }: NodeProps<DecisionFlowNode>) {
 }
 
 const nodeTypes = {
+  'swimlane-frame': SwimlaneFrame,
   swimlane: SwimlaneLane,
   process: ProcessBox,
   decision: DecisionBox,
 } satisfies NodeTypes
 
+function swimlaneFrame(width: number, height: number): SwimlaneFrameNode {
+  return {
+    id: SWIMLANE_FRAME_ID,
+    type: 'swimlane-frame',
+    position: { x: 0, y: 0 },
+    data: {},
+    style: { width, height },
+    connectable: false,
+    draggable: false,
+    selectable: false,
+    zIndex: -1,
+  }
+}
+
 function lane(id: string, label: string, tone: LaneTone, x: number): SwimlaneNode {
   return {
     id,
     type: 'swimlane',
+    parentId: SWIMLANE_FRAME_ID,
+    extent: 'parent',
     position: { x, y: 0 },
     data: { label, tone },
     style: { width: LANE_W, height: LANE_H },
     connectable: false,
+    draggable: false,
     zIndex: 0,
   }
 }
@@ -431,6 +449,7 @@ function decision(
 }
 
 const initialNodes: FlowNode[] = withLaneColumns([
+  swimlaneFrame(LANE_W * 3, LANE_H),
   lane('lane-frontend', 'フロントエンド', 'frontend', 0),
   lane('lane-backend', 'バックエンド', 'backend', LANE_W + LANE_GAP),
   lane('lane-database', 'データベース', 'database', (LANE_W + LANE_GAP) * 2),
@@ -560,13 +579,34 @@ function isSwimlane(node: FlowNode): node is SwimlaneNode {
   return node.type === 'swimlane'
 }
 
+function isSwimlaneFrame(node: FlowNode): node is SwimlaneFrameNode {
+  return node.type === 'swimlane-frame'
+}
+
+function isEditableFlowNode(
+  node: FlowNode,
+): node is SwimlaneNode | ProcessNode | DecisionFlowNode {
+  return !isSwimlaneFrame(node)
+}
+
 function withLaneColumns(nodes: FlowNode[]): FlowNode[] {
   const lanes = nodes
     .filter(isSwimlane)
     .slice()
     .sort((a, b) => a.position.x - b.position.x)
+  const width = lanes.reduce(
+    (max, lane) => Math.max(max, lane.position.x + laneWidth(lane)),
+    0,
+  )
+  const height = lanes.reduce(
+    (max, lane) => Math.max(max, Number(lane.style?.height ?? LANE_H)),
+    LANE_H,
+  )
 
   return nodes.map((node) => {
+    if (isSwimlaneFrame(node)) {
+      return { ...node, style: { ...node.style, width, height } }
+    }
     if (!isSwimlane(node)) return node
     const index = lanes.findIndex((lane) => lane.id === node.id)
     const column = index === 0 ? 'first' : index === lanes.length - 1 ? 'last' : 'middle'
@@ -605,7 +645,7 @@ function formatNodes(nodes: FlowNode[]): FlowNode[] {
     .filter(isSwimlane)
     .slice()
     .sort((a, b) => a.position.x - b.position.x)
-  const children = nodes.filter((node) => node.parentId)
+  const children = nodes.filter((node) => node.parentId && !isSwimlane(node))
   const formatted: FlowNode[] = []
   let x = 0
 
@@ -640,17 +680,24 @@ function formatNodes(nodes: FlowNode[]): FlowNode[] {
     x += LANE_W + LANE_GAP
   }
 
-  return withLaneColumns(formatted)
+  return withLaneColumns([...nodes.filter(isSwimlaneFrame), ...formatted])
 }
 
 function absolutePosition(nodes: FlowNode[], node: FlowNode) {
-  const parent = node.parentId
-    ? nodes.find((item) => item.id === node.parentId)
-    : undefined
-  return {
-    x: (parent?.position.x ?? 0) + node.position.x,
-    y: (parent?.position.y ?? 0) + node.position.y,
+  let current: FlowNode | undefined = node
+  let x = 0
+  let y = 0
+
+  while (current) {
+    x += current.position.x
+    y += current.position.y
+    const parentId: string | undefined = current.parentId
+    current = parentId
+      ? nodes.find((item) => item.id === parentId)
+      : undefined
   }
+
+  return { x, y }
 }
 
 function connectHandles(nodes: FlowNode[], source: FlowNode, target: FlowNode) {
@@ -696,7 +743,10 @@ function SwimLaneEditor() {
 
   const selectedNodes = nodes.filter((node) => node.selected)
   const selectedEdges = edges.filter((edge) => edge.selected)
-  const selectedNode = selectedNodes.length === 1 ? selectedNodes[0] : undefined
+  const selectedNode =
+    selectedNodes.length === 1 && isEditableFlowNode(selectedNodes[0])
+      ? selectedNodes[0]
+      : undefined
   const selectedEdge = selectedEdges.length === 1 ? selectedEdges[0] : undefined
   const targetLane = getTargetLane(nodes)
   const selectedItems = selectedNodes.filter((node) => node.type !== 'swimlane')
@@ -894,7 +944,7 @@ function SwimLaneEditor() {
       if (selectedNode) {
         setNodes((current) =>
           current.map((node) =>
-            node.id === selectedNode.id
+            node.id === selectedNode.id && isEditableFlowNode(node)
               ? { ...node, data: { ...node.data, label } }
               : node,
           ),
@@ -916,7 +966,7 @@ function SwimLaneEditor() {
       if (!selectedNode) return
       setNodes((current) =>
         current.map((node) =>
-          node.id === selectedNode.id
+          node.id === selectedNode.id && isEditableFlowNode(node)
             ? { ...node, data: { ...node.data, tone } }
             : node,
         ),
