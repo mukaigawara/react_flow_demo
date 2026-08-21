@@ -643,8 +643,18 @@ body,
 }
 
 .swimlane-flow .decision-node {
+  position: relative;
   width: 132px;
   height: 132px;
+}
+
+.swimlane-flow .node-port {
+  width: 8px;
+  height: 8px;
+}
+
+.swimlane-flow .node-port--target {
+  opacity: 0 !important;
 }
 
 .swimlane-flow .decision-diamond {

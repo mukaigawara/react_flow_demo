@@ -24,20 +24,20 @@ import {
   type NodeProps,
   type NodeTypes,
   type OnBeforeDelete,
-  type SmoothStepPathOptions,
 } from '@xyflow/react'
 
 type LaneTone = 'frontend' | 'backend' | 'database' | 'ops' | 'other'
 
 type SwimlaneData = { label: string; tone: LaneTone }
 type ProcessData = { label: string; tone: LaneTone }
-type DecisionData = { label: string; tone: LaneTone; dualLeft?: boolean }
+type DecisionData = { label: string; tone: LaneTone }
 
 type SwimlaneNode = Node<SwimlaneData, 'swimlane'>
 type ProcessNode = Node<ProcessData, 'process'>
 type DecisionFlowNode = Node<DecisionData, 'decision'>
 type FlowNode = SwimlaneNode | ProcessNode | DecisionFlowNode
-type FlowEdge = Edge & { pathOptions?: SmoothStepPathOptions }
+type FlowEdge = Edge
+type HandleId = 'top' | 'right' | 'bottom' | 'left'
 
 const LANE_W = 380
 const LANE_H = 1160
@@ -65,10 +65,45 @@ const LANE_LABELS = [
 const arrow = { type: MarkerType.ArrowClosed, width: 18, height: 18, color: '#7b8494' }
 const arrowYes = { type: MarkerType.ArrowClosed, width: 18, height: 18, color: '#1a7a70' }
 const arrowNo = { type: MarkerType.ArrowClosed, width: 18, height: 18, color: '#c24155' }
-const edgePath: SmoothStepPathOptions = { offset: 36, borderRadius: 18 }
 const labelBg = {
   fill: '#ffffff',
   fillOpacity: 0.96,
+}
+
+const CARDINAL: { id: HandleId; position: Position }[] = [
+  { id: 'top', position: Position.Top },
+  { id: 'right', position: Position.Right },
+  { id: 'bottom', position: Position.Bottom },
+  { id: 'left', position: Position.Left },
+]
+
+function CardinalHandles() {
+  return (
+    <>
+      {CARDINAL.map(({ id, position }) => (
+        <Handle
+          key={`target-${id}`}
+          type="target"
+          position={position}
+          id={id}
+          className="node-port node-port--target"
+        />
+      ))}
+      {CARDINAL.map(({ id, position }) => (
+        <Handle
+          key={`source-${id}`}
+          type="source"
+          position={position}
+          id={id}
+          className="node-port"
+        />
+      ))}
+    </>
+  )
+}
+
+function alignCenterY(anchorY: number, anchorH: number, height: number) {
+  return Math.round(anchorY + (anchorH - height) / 2)
 }
 
 function IconLane() {
@@ -242,32 +277,7 @@ function ProcessBox({ id, data }: NodeProps<ProcessNode>) {
 
   return (
     <div className={`process-node process-node--${data.tone}`}>
-      <Handle type="target" position={Position.Top} id="in-top" />
-      <Handle type="source" position={Position.Bottom} id="out-bottom" />
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="in-left"
-        style={{ top: '30%' }}
-      />
-      <Handle
-        type="source"
-        position={Position.Left}
-        id="out-left"
-        style={{ top: '70%' }}
-      />
-      <Handle
-        type="target"
-        position={Position.Right}
-        id="in-right"
-        style={{ top: '30%' }}
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="out-right"
-        style={{ top: '70%' }}
-      />
+      <CardinalHandles />
       <EditableLabel
         value={data.label}
         onChange={(label) => updateNodeData(id, { label })}
@@ -281,40 +291,7 @@ function DecisionBox({ id, data }: NodeProps<DecisionFlowNode>) {
 
   return (
     <div className="decision-node">
-      <Handle type="target" position={Position.Top} id="in-top" />
-      <Handle
-        type="target"
-        position={Position.Right}
-        id="in-right"
-        style={{ top: '30%' }}
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="out-right"
-        style={{ top: '70%' }}
-      />
-      <Handle type="source" position={Position.Bottom} id="out-bottom" />
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="in-left"
-        style={data.dualLeft ? { top: '18%' } : undefined}
-      />
-      <Handle
-        type="source"
-        position={Position.Left}
-        id="out-left"
-        style={data.dualLeft ? { top: '32%' } : undefined}
-      />
-      {data.dualLeft ? (
-        <Handle
-          type="source"
-          position={Position.Left}
-          id="out-left-bottom"
-          style={{ top: '72%' }}
-        />
-      ) : null}
+      <CardinalHandles />
       <div className={`decision-diamond decision-diamond--${data.tone}`}>
         <EditableLabel
           value={data.label}
@@ -367,7 +344,6 @@ function decision(
   tone: LaneTone,
   parentId: string,
   y: number,
-  dualLeft = false,
 ): DecisionFlowNode {
   return {
     id,
@@ -375,7 +351,7 @@ function decision(
     parentId,
     extent: 'parent',
     position: { x: laneInnerX(LANE_W, DECISION_W), y },
-    data: { label, tone, dualLeft },
+    data: { label, tone },
     style: { width: DECISION_W, height: DECISION_H },
   }
 }
@@ -386,20 +362,50 @@ const initialNodes: FlowNode[] = [
   lane('lane-database', 'データベース', 'database', (LANE_W + LANE_GAP) * 2),
 
   process('fe-send', '要求を送信', 'frontend', 'lane-frontend', 104),
-  process('fe-fail-req', '失敗処理', 'frontend', 'lane-frontend', 276),
-  process('fe-fail-abn', '失敗処理', 'frontend', 'lane-frontend', 780),
-  process('fe-success', '成功処理', 'frontend', 'lane-frontend', 980),
+  process(
+    'fe-fail-req',
+    '失敗処理',
+    'frontend',
+    'lane-frontend',
+    alignCenterY(224, DECISION_H, PROCESS_H),
+  ),
+  process(
+    'fe-fail-abn',
+    '失敗処理',
+    'frontend',
+    'lane-frontend',
+    alignCenterY(576, DECISION_H, PROCESS_H),
+  ),
+  process(
+    'fe-success',
+    '成功処理',
+    'frontend',
+    'lane-frontend',
+    alignCenterY(900, DECISION_H, PROCESS_H),
+  ),
 
   process('be-recv', '受信要求', 'backend', 'lane-backend', 104),
   decision('be-parse', '解析要求', 'backend', 'lane-backend', 224),
   process('be-dbreq', 'データベースと接続を要求', 'backend', 'lane-backend', 448),
-  process('be-error', '異常処理', 'backend', 'lane-backend', 780),
-  process('be-data', 'データ解析', 'backend', 'lane-backend', 980),
+  process(
+    'be-error',
+    '異常処理',
+    'backend',
+    'lane-backend',
+    alignCenterY(576, DECISION_H, PROCESS_H),
+  ),
+  process(
+    'be-data',
+    'データ解析',
+    'backend',
+    'lane-backend',
+    alignCenterY(900, DECISION_H, PROCESS_H),
+  ),
 
   process('db-recv', '受信要求', 'database', 'lane-database', 448),
   decision('db-accept', '要求の受理', 'database', 'lane-database', 576),
   process('db-sql', 'SQL文を実行する', 'database', 'lane-database', 780),
-  decision('db-result', '実行結果', 'database', 'lane-database', 900, true),
+  decision('db-result', '実行結果', 'database', 'lane-database', 900),
 ]
 
 function laneEdge(
@@ -424,10 +430,9 @@ function laneEdge(
     id,
     source,
     target,
-    type: 'smoothstep',
+    type: 'straight',
     markerEnd: arrow,
     className,
-    pathOptions: edgePath,
     zIndex: 3,
     labelShowBg: true,
     labelBgStyle: labelBg,
@@ -449,24 +454,24 @@ function laneEdge(
 
 const initialEdges: FlowEdge[] = [
   laneEdge('e-send-recv', 'fe-send', 'be-recv', {
-    sourceHandle: 'out-right',
-    targetHandle: 'in-left',
+    sourceHandle: 'right',
+    targetHandle: 'left',
   }),
   laneEdge('e-recv-parse', 'be-recv', 'be-parse', {
-    sourceHandle: 'out-bottom',
-    targetHandle: 'in-top',
+    sourceHandle: 'bottom',
+    targetHandle: 'top',
   }),
   laneEdge('e-parse-fail', 'be-parse', 'fe-fail-req', {
-    sourceHandle: 'out-left',
-    targetHandle: 'in-right',
+    sourceHandle: 'left',
+    targetHandle: 'right',
     label: 'リクエスト失敗',
     className: 'edge-no',
     markerEnd: arrowNo,
     style: { stroke: '#c24155', strokeWidth: 2 },
   }),
   laneEdge('e-parse-ok', 'be-parse', 'be-dbreq', {
-    sourceHandle: 'out-bottom',
-    targetHandle: 'in-top',
+    sourceHandle: 'bottom',
+    targetHandle: 'top',
     label: '成功',
     className: 'edge-yes',
     animated: true,
@@ -474,24 +479,24 @@ const initialEdges: FlowEdge[] = [
     style: { stroke: '#1a7a70', strokeWidth: 2 },
   }),
   laneEdge('e-dbreq-recv', 'be-dbreq', 'db-recv', {
-    sourceHandle: 'out-right',
-    targetHandle: 'in-left',
+    sourceHandle: 'right',
+    targetHandle: 'left',
   }),
   laneEdge('e-recv-accept', 'db-recv', 'db-accept', {
-    sourceHandle: 'out-bottom',
-    targetHandle: 'in-top',
+    sourceHandle: 'bottom',
+    targetHandle: 'top',
   }),
   laneEdge('e-accept-fail', 'db-accept', 'be-error', {
-    sourceHandle: 'out-left',
-    targetHandle: 'in-right',
+    sourceHandle: 'left',
+    targetHandle: 'right',
     label: '失敗',
     className: 'edge-no',
     markerEnd: arrowNo,
     style: { stroke: '#c24155', strokeWidth: 2 },
   }),
   laneEdge('e-accept-ok', 'db-accept', 'db-sql', {
-    sourceHandle: 'out-bottom',
-    targetHandle: 'in-top',
+    sourceHandle: 'bottom',
+    targetHandle: 'top',
     label: '成功',
     className: 'edge-yes',
     animated: true,
@@ -499,20 +504,20 @@ const initialEdges: FlowEdge[] = [
     style: { stroke: '#1a7a70', strokeWidth: 2 },
   }),
   laneEdge('e-sql-result', 'db-sql', 'db-result', {
-    sourceHandle: 'out-bottom',
-    targetHandle: 'in-top',
+    sourceHandle: 'bottom',
+    targetHandle: 'top',
   }),
   laneEdge('e-result-fail', 'db-result', 'be-error', {
-    sourceHandle: 'out-left',
-    targetHandle: 'in-right',
+    sourceHandle: 'left',
+    targetHandle: 'right',
     label: '失敗',
     className: 'edge-no',
     markerEnd: arrowNo,
     style: { stroke: '#c24155', strokeWidth: 2 },
   }),
   laneEdge('e-result-ok', 'db-result', 'be-data', {
-    sourceHandle: 'out-left-bottom',
-    targetHandle: 'in-right',
+    sourceHandle: 'left',
+    targetHandle: 'right',
     label: '成功',
     className: 'edge-yes',
     animated: true,
@@ -520,16 +525,16 @@ const initialEdges: FlowEdge[] = [
     style: { stroke: '#1a7a70', strokeWidth: 2 },
   }),
   laneEdge('e-error-fe', 'be-error', 'fe-fail-abn', {
-    sourceHandle: 'out-left',
-    targetHandle: 'in-right',
+    sourceHandle: 'left',
+    targetHandle: 'right',
     label: '異常情報を返す',
     className: 'edge-no',
     markerEnd: arrowNo,
     style: { stroke: '#c24155', strokeWidth: 2 },
   }),
   laneEdge('e-data-fe', 'be-data', 'fe-success', {
-    sourceHandle: 'out-left',
-    targetHandle: 'in-right',
+    sourceHandle: 'left',
+    targetHandle: 'right',
     label: '返却データ情報',
     className: 'edge-yes',
     markerEnd: arrowYes,
@@ -627,12 +632,12 @@ function connectHandles(nodes: FlowNode[], source: FlowNode, target: FlowNode) {
   const dy = to.y - from.y
   if (Math.abs(dx) >= Math.abs(dy)) {
     return dx >= 0
-      ? { sourceHandle: 'out-right', targetHandle: 'in-left' }
-      : { sourceHandle: 'out-left', targetHandle: 'in-right' }
+      ? { sourceHandle: 'right', targetHandle: 'left' }
+      : { sourceHandle: 'left', targetHandle: 'right' }
   }
   return dy >= 0
-    ? { sourceHandle: 'out-bottom', targetHandle: 'in-top' }
-    : { sourceHandle: 'in-top', targetHandle: 'out-bottom' }
+    ? { sourceHandle: 'bottom', targetHandle: 'top' }
+    : { sourceHandle: 'top', targetHandle: 'bottom' }
 }
 
 function cloneGraph() {
@@ -679,9 +684,8 @@ function SwimLaneEditor() {
         addEdge(
           {
             ...params,
-            type: 'smoothstep',
+            type: 'straight',
             markerEnd: arrow,
-            pathOptions: edgePath,
           },
           current,
         ),
@@ -820,9 +824,8 @@ function SwimLaneEditor() {
           source: source.id,
           target: target.id,
           ...connectHandles(nodes, source, target),
-          type: 'smoothstep',
+          type: 'straight',
           markerEnd: arrow,
-          pathOptions: edgePath,
         },
         current,
       ),
@@ -881,9 +884,9 @@ function SwimLaneEditor() {
       deleteKeyCode={['Backspace', 'Delete']}
       multiSelectionKeyCode={['Shift', 'Control', 'Meta']}
       connectionMode={ConnectionMode.Loose}
-      connectionLineType={ConnectionLineType.SmoothStep}
+      connectionLineType={ConnectionLineType.Straight}
       defaultEdgeOptions={{
-        type: 'smoothstep',
+        type: 'straight',
         markerEnd: arrow,
       }}
       edgesReconnectable
