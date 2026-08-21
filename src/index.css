@@ -811,6 +811,7 @@ body,
   position: relative;
   width: 100%;
   height: 100%;
+  box-sizing: border-box;
   border-right: 1px solid rgba(148, 163, 184, 0.38);
 }
 
@@ -819,7 +820,7 @@ body,
   position: absolute;
   inset: 0 0 auto;
   z-index: 2;
-  height: 4px;
+  height: 3px;
   border-radius: 0;
   pointer-events: none;
   background: var(--lane-accent);
@@ -838,13 +839,18 @@ body,
   z-index: 3;
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 20px 22px 0;
-  padding: 0;
-  font-size: 11px;
+  justify-content: center;
+  gap: 7px;
+  box-sizing: border-box;
+  height: 64px;
+  margin: 0;
+  padding: 3px 18px 0;
+  font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.05em;
   color: var(--ink-2);
+  background: rgba(255, 255, 255, 0.18);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.32);
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
 }
 
@@ -862,16 +868,7 @@ body,
 }
 
 .swimlane-node__title::after {
-  content: '';
-  height: 1px;
-  flex: 1;
-  min-width: 18px;
-  margin-left: 6px;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--lane-accent) 56%, transparent),
-    transparent
-  );
+  content: none;
 }
 
 .swimlane-node--frontend {
