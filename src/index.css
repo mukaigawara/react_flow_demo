@@ -81,6 +81,77 @@ body,
   pointer-events: none;
 }
 
+.flow-panel--editor {
+  max-width: 360px;
+  pointer-events: auto;
+}
+
+.flow-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.flow-toolbar button {
+  appearance: none;
+  border: 1px solid #c7d2fe;
+  background: #eef2ff;
+  color: #3730a3;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.flow-toolbar button:hover {
+  background: #e0e7ff;
+}
+
+.flow-toolbar button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.flow-toolbar button.danger {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #be123c;
+}
+
+.flow-toolbar button.danger:hover:not(:disabled) {
+  background: #ffe4e6;
+}
+
+.flow-field {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: #475569;
+}
+
+.flow-field input,
+.node-label-input {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.flow-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #64748b;
+}
+
 .flow-kicker {
   margin: 0 0 4px;
   font-size: 12px;
@@ -157,13 +228,19 @@ body,
   transform: rotate(45deg);
 }
 
-.decision-diamond span {
+.decision-diamond span,
+.decision-diamond .node-label-input {
   width: 92px;
   text-align: center;
   color: #fff;
   font-size: 13px;
   font-weight: 700;
   transform: rotate(-45deg);
+}
+
+.decision-diamond .node-label-input {
+  color: #0f172a;
+  padding: 4px 6px;
 }
 
 .decision-diamond--frontend {
@@ -222,6 +299,22 @@ body,
   color: #be185d;
 }
 
+.swimlane-node--ops {
+  background: rgba(187, 247, 208, 0.45);
+  border-color: #4ade80;
+  color: #15803d;
+}
+
+.swimlane-node--other {
+  background: rgba(221, 214, 254, 0.5);
+  border-color: #a78bfa;
+  color: #6d28d9;
+}
+
+.react-flow__node-swimlane.selected .swimlane-node {
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.35);
+}
+
 .process-node {
   min-width: 196px;
   padding: 12px 14px;
@@ -253,6 +346,35 @@ body,
   background: #f9a8d4;
   border: 1px solid #db2777;
   color: #831843;
+}
+
+.process-node--ops {
+  background: #86efac;
+  border: 1px solid #16a34a;
+  color: #14532d;
+}
+
+.process-node--other {
+  background: #c4b5fd;
+  border: 1px solid #7c3aed;
+  color: #4c1d95;
+}
+
+.decision-diamond--ops {
+  background: linear-gradient(135deg, #4ade80, #16a34a);
+  box-shadow: 0 10px 24px rgba(22, 163, 74, 0.28);
+}
+
+.decision-diamond--other {
+  background: linear-gradient(135deg, #a78bfa, #7c3aed);
+  box-shadow: 0 10px 24px rgba(124, 58, 237, 0.28);
+}
+
+.decision-node .react-flow__handle,
+.process-node .react-flow__handle {
+  width: 10px;
+  height: 10px;
+  background: #334155;
 }
 
 .edge-yes .react-flow__edge-text,
