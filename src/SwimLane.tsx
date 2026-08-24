@@ -1,4 +1,11 @@
-import { useCallback, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -29,6 +36,7 @@ import {
   type OnNodeDrag,
   type OnNodesChange,
 } from '@xyflow/react'
+import { useGraphHistory, type GraphSnapshot } from './useGraphHistory'
 
 type LaneTone = 'frontend' | 'backend' | 'database' | 'ops' | 'other'
 
@@ -44,6 +52,11 @@ type DecisionFlowNode = Node<DecisionData, 'decision'>
 type FlowNode = SwimlaneFrameNode | SwimlaneNode | ProcessNode | DecisionFlowNode
 type FlowEdge = Edge
 type HandleId = 'top' | 'right' | 'bottom' | 'left'
+type SwimlaneGraph = GraphSnapshot<FlowNode, FlowEdge>
+
+const RecordHistoryContext = createContext<(coalesceKey?: string) => void>(
+  () => {},
+)
 
 const LANE_W = 380
 const LANE_H = 920
@@ -233,6 +246,46 @@ function IconReset() {
   )
 }
 
+function IconUndo() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M4.2 6.5H10a3.5 3.5 0 1 1 0 7H8.8"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M6.4 3.8 3.4 6.5l3 2.7"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function IconRedo() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M11.8 6.5H6a3.5 3.5 0 1 0 0 7h1.2"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M9.6 3.8 12.6 6.5l-3 2.7"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 function ToneSwatches({
   value,
   onChange,
@@ -344,13 +397,18 @@ function EditableLabel({
 
 function SwimlaneLane({ id, data }: NodeProps<SwimlaneNode>) {
   const { updateNodeData } = useReactFlow()
+  const record = useContext(RecordHistoryContext)
 
   return (
     <div className={`swimlane-node swimlane-node--${data.tone}`}>
       <div className="swimlane-node__title">
         <EditableLabel
           value={data.label}
-          onChange={(label) => updateNodeData(id, { label })}
+          onChange={(label) => {
+            if (label === data.label) return
+            record()
+            updateNodeData(id, { label })
+          }}
         />
       </div>
     </div>
@@ -363,13 +421,18 @@ function SwimlaneFrame() {
 
 function ProcessBox({ id, data }: NodeProps<ProcessNode>) {
   const { updateNodeData } = useReactFlow()
+  const record = useContext(RecordHistoryContext)
 
   return (
     <div className="process-node">
       <CardinalHandles />
       <EditableLabel
         value={data.label}
-        onChange={(label) => updateNodeData(id, { label })}
+        onChange={(label) => {
+          if (label === data.label) return
+          record()
+          updateNodeData(id, { label })
+        }}
       />
     </div>
   )
@@ -377,6 +440,7 @@ function ProcessBox({ id, data }: NodeProps<ProcessNode>) {
 
 function DecisionBox({ id, data }: NodeProps<DecisionFlowNode>) {
   const { updateNodeData } = useReactFlow()
+  const record = useContext(RecordHistoryContext)
 
   return (
     <div className="decision-node">
@@ -384,7 +448,11 @@ function DecisionBox({ id, data }: NodeProps<DecisionFlowNode>) {
       <div className={`decision-diamond decision-diamond--${data.tone}`}>
         <EditableLabel
           value={data.label}
-          onChange={(label) => updateNodeData(id, { label })}
+          onChange={(label) => {
+            if (label === data.label) return
+            record()
+            updateNodeData(id, { label })
+          }}
         />
       </div>
     </div>
@@ -787,7 +855,7 @@ function laneForDraggedChild(
   })
 }
 
-function cloneGraph() {
+function initialGraph() {
   return {
     nodes: structuredClone(initialNodes),
     edges: structuredClone(initialEdges) as FlowEdge[],
@@ -813,6 +881,18 @@ function SwimLaneEditor() {
   const [nodes, setNodes] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState<FlowEdge>(initialEdges)
   const [dragTargetLaneId, setDragTargetLaneId] = useState<string>()
+  const dragOriginRef = useRef<SwimlaneGraph | null>(null)
+  const reconnectOriginRef = useRef<SwimlaneGraph | null>(null)
+
+  const applyGraph = useCallback(
+    (graph: SwimlaneGraph) => {
+      setNodes(graph.nodes)
+      setEdges(graph.edges)
+    },
+    [setEdges, setNodes],
+  )
+  const { record, commitChange, snapshot, undo, redo, canUndo, canRedo } =
+    useGraphHistory(nodes, edges, applyGraph)
 
   const selectedNodes = nodes.filter((node) => node.selected)
   const selectedEdges = edges.filter((edge) => edge.selected)
@@ -852,9 +932,10 @@ function SwimLaneEditor() {
     (_event, draggedNode) => {
       if (!isLaneChild(draggedNode)) return
 
+      dragOriginRef.current = snapshot()
       setDragTargetLaneId(draggedNode.parentId)
     },
-    [],
+    [snapshot],
   )
 
   const onNodeDrag = useCallback<OnNodeDrag<FlowNode>>(
@@ -874,13 +955,18 @@ function SwimLaneEditor() {
       if (!isLaneChild(draggedNode)) return
 
       setDragTargetLaneId(undefined)
-      setNodes((current) => settleLaneChild(current, draggedNode) ?? current)
+      const origin = dragOriginRef.current
+      dragOriginRef.current = null
+      const next = settleLaneChild(nodes, draggedNode) ?? nodes
+      setNodes(next)
+      if (origin) commitChange(origin, { nodes: next, edges })
     },
-    [setNodes],
+    [commitChange, edges, nodes, setNodes],
   )
 
   const onConnect = useCallback(
     (params: Connection) => {
+      record()
       setEdges((current) =>
         addEdge(
           {
@@ -892,15 +978,27 @@ function SwimLaneEditor() {
         ),
       )
     },
-    [setEdges],
+    [record, setEdges],
   )
+
+  const onReconnectStart = useCallback(() => {
+    reconnectOriginRef.current = snapshot()
+  }, [snapshot])
 
   const onReconnect = useCallback(
     (oldEdge: FlowEdge, connection: Connection) => {
-      setEdges((current) => reconnectEdge(oldEdge, connection, current))
+      const origin = reconnectOriginRef.current
+      reconnectOriginRef.current = null
+      const next = reconnectEdge(oldEdge, connection, edges)
+      setEdges(next)
+      if (origin) commitChange(origin, { nodes, edges: next })
     },
-    [setEdges],
+    [commitChange, edges, nodes, setEdges],
   )
+
+  const onReconnectEnd = useCallback(() => {
+    reconnectOriginRef.current = null
+  }, [])
 
   const isValidConnection = useCallback(
     (connection: Connection | Edge) => connection.source !== connection.target,
@@ -909,6 +1007,7 @@ function SwimLaneEditor() {
 
   const onBeforeDelete = useCallback<OnBeforeDelete<FlowNode, FlowEdge>>(
     async ({ nodes: removing, edges: removingEdges }) => {
+      record()
       const ids = new Set(removing.map((node) => node.id))
       const extraNodes = nodes.filter(
         (node) => node.parentId && ids.has(node.parentId) && !ids.has(node.id),
@@ -922,7 +1021,7 @@ function SwimLaneEditor() {
       )
       return { nodes: allNodes, edges: [...removingEdges, ...extraEdges] }
     },
-    [nodes, edges],
+    [edges, nodes, record],
   )
 
   const scheduleFitView = useCallback(() => {
@@ -932,6 +1031,7 @@ function SwimLaneEditor() {
   }, [fitView])
 
   const addLane = useCallback(() => {
+    record()
     setNodes((current) => {
       const lanes = current.filter(isSwimlane)
       const index = lanes.length
@@ -955,10 +1055,11 @@ function SwimLaneEditor() {
       ])
     })
     scheduleFitView()
-  }, [scheduleFitView, setNodes])
+  }, [record, scheduleFitView, setNodes])
 
   const addChild = useCallback(
     (kind: 'process' | 'decision') => {
+      record()
       setNodes((current) => {
         let working = current
         let parent = getTargetLane(working)
@@ -1014,12 +1115,13 @@ function SwimLaneEditor() {
         ])
       })
     },
-    [setNodes],
+    [record, setNodes],
   )
 
   const connectSelected = useCallback(() => {
     if (selectedItems.length !== 2) return
     const [source, target] = selectedItems
+    record()
     setEdges((current) =>
       addEdge(
         {
@@ -1032,9 +1134,10 @@ function SwimLaneEditor() {
         current,
       ),
     )
-  }, [nodes, selectedItems, setEdges])
+  }, [nodes, record, selectedItems, setEdges])
 
   const removeSelected = useCallback(() => {
+    record()
     const selectedIds = new Set(selectedNodes.map((node) => node.id))
     const removingIds = new Set(
       nodes
@@ -1055,14 +1158,15 @@ function SwimLaneEditor() {
           !removingIds.has(edge.target),
       ),
     )
-  }, [nodes, selectedEdges, selectedNodes, setEdges, setNodes])
+  }, [nodes, record, selectedEdges, selectedNodes, setEdges, setNodes])
 
   const reset = useCallback(() => {
-    const graph = cloneGraph()
+    record()
+    const graph = initialGraph()
     setNodes(graph.nodes)
     setEdges(graph.edges)
     scheduleFitView()
-  }, [scheduleFitView, setEdges, setNodes])
+  }, [record, scheduleFitView, setEdges, setNodes])
 
   const selectedLabel =
     selectedNode && 'label' in selectedNode.data
@@ -1075,6 +1179,7 @@ function SwimLaneEditor() {
   const updateSelectedLabel = useCallback(
     (label: string) => {
       if (selectedNode) {
+        record(`label-node:${selectedNode.id}`)
         setNodes((current) =>
           current.map((node) =>
             node.id === selectedNode.id && isEditableFlowNode(node)
@@ -1084,6 +1189,7 @@ function SwimLaneEditor() {
         )
       }
       if (selectedEdge) {
+        record(`label-edge:${selectedEdge.id}`)
         setEdges((current) =>
           current.map((edge) =>
             edge.id === selectedEdge.id ? { ...edge, label } : edge,
@@ -1091,12 +1197,13 @@ function SwimLaneEditor() {
         )
       }
     },
-    [selectedEdge, selectedNode, setEdges, setNodes],
+    [record, selectedEdge, selectedNode, setEdges, setNodes],
   )
 
   const updateSelectedTone = useCallback(
     (tone: LaneTone) => {
       if (!selectedNode) return
+      record()
       setNodes((current) =>
         current.map((node) =>
           node.id === selectedNode.id && isEditableFlowNode(node)
@@ -1105,7 +1212,7 @@ function SwimLaneEditor() {
         ),
       )
     },
-    [selectedNode, setNodes],
+    [record, selectedNode, setNodes],
   )
 
   const updateSelectedEdgeColor = useCallback(
@@ -1113,6 +1220,7 @@ function SwimLaneEditor() {
       if (!selectedEdge) return
       const appearance = EDGE_COLORS.find((item) => item.id === id)
       if (!appearance) return
+      record()
       setEdges((current) =>
         current.map((edge) =>
           edge.id === selectedEdge.id
@@ -1134,10 +1242,11 @@ function SwimLaneEditor() {
         ),
       )
     },
-    [selectedEdge, setEdges],
+    [record, selectedEdge, setEdges],
   )
 
   return (
+    <RecordHistoryContext.Provider value={record}>
     <ReactFlow<FlowNode, FlowEdge>
       className="swimlane-flow"
       nodes={nodes}
@@ -1148,7 +1257,9 @@ function SwimLaneEditor() {
       onNodeDragStop={onNodeDragStop}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
+      onReconnectStart={onReconnectStart}
       onReconnect={onReconnect}
+      onReconnectEnd={onReconnectEnd}
       onBeforeDelete={onBeforeDelete}
       isValidConnection={isValidConnection}
       nodeTypes={nodeTypes}
@@ -1177,7 +1288,7 @@ function SwimLaneEditor() {
         <p className="flow-kicker">React Flow サンプル</p>
         <h1>スイムレーン</h1>
         <p>
-          ハンドルをドラッグして線をつなぎます。選択すると下のメニューから名前とカラーを変更できます。
+          ハンドルをドラッグして線をつなぎます。選択すると下のメニューから名前とカラーを変更できます。Ctrl / ⌘ + Z で元に戻し、Ctrl / ⌘ + Shift + Z でやり直せます。
         </p>
       </Panel>
       {dragTargetLane ? (
@@ -1272,6 +1383,24 @@ function SwimLaneEditor() {
             線を追加
           </ToolButton>
         </div>
+        <div className="editor-group" aria-label="履歴">
+          <ToolButton
+            icon={<IconUndo />}
+            onClick={undo}
+            disabled={!canUndo}
+            title="元に戻す (Ctrl / ⌘ + Z)"
+          >
+            元に戻す
+          </ToolButton>
+          <ToolButton
+            icon={<IconRedo />}
+            onClick={redo}
+            disabled={!canRedo}
+            title="やり直す (Ctrl / ⌘ + Shift + Z)"
+          >
+            やり直す
+          </ToolButton>
+        </div>
         <div className="editor-group editor-group--danger" aria-label="削除とリセット">
           <ToolButton
             icon={<IconTrash />}
@@ -1293,6 +1422,7 @@ function SwimLaneEditor() {
       </div>
       </Panel>
     </ReactFlow>
+    </RecordHistoryContext.Provider>
   )
 }
 
