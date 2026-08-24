@@ -47,10 +47,13 @@ export function graphsEqual<N, E>(a: GraphSnapshot<N, E>, b: GraphSnapshot<N, E>
   return JSON.stringify(omitVolatile(a)) === JSON.stringify(omitVolatile(b))
 }
 
-function isEditingField(target: EventTarget | null) {
+export function isEditingField(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false
+  if (target.closest('input, textarea, select') !== null) return true
+  if (target.isContentEditable) return true
+  const editable = target.closest('[contenteditable]')
   return (
-    target instanceof HTMLElement &&
-    (target.closest('textarea, select') !== null || target.isContentEditable)
+    editable instanceof HTMLElement && editable.getAttribute('contenteditable') !== 'false'
   )
 }
 
