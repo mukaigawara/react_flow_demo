@@ -17,9 +17,12 @@ import {
   MarkerType,
   ConnectionMode,
   ConnectionLineType,
+  SmoothStepEdge,
+  StraightEdge,
   type Node,
   type Edge,
   type Connection,
+  type EdgeProps,
   type NodeProps,
   type NodeTypes,
   type OnBeforeDelete,
@@ -48,6 +51,7 @@ const LANE_GAP = 0
 const SWIMLANE_FRAME_ID = 'swimlane-frame'
 const HEADER_Y = 92
 const NODE_GAP = 56
+const LANE_CENTER_SNAP_DISTANCE = 24
 const PROCESS_W = 232
 const PROCESS_H = 52
 const DECISION_W = 132
@@ -147,6 +151,22 @@ function CardinalHandles() {
   )
 }
 
+function AxisAlignedSmoothStepEdge(props: EdgeProps<FlowEdge>) {
+  const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition } = props
+  const vertical =
+    Math.abs(sourceX - targetX) <= 1 &&
+    ((sourcePosition === Position.Bottom && targetPosition === Position.Top) ||
+      (sourcePosition === Position.Top && targetPosition === Position.Bottom))
+  const horizontal =
+    Math.abs(sourceY - targetY) <= 1 &&
+    ((sourcePosition === Position.Right && targetPosition === Position.Left) ||
+      (sourcePosition === Position.Left && targetPosition === Position.Right))
+
+  return vertical || horizontal ? <StraightEdge {...props} /> : <SmoothStepEdge {...props} />
+}
+
+const edgeTypes = { smoothstep: AxisAlignedSmoothStepEdge }
+
 function alignCenterY(anchorY: number, anchorH: number, height: number) {
   return Math.round(anchorY + (anchorH - height) / 2)
 }
@@ -192,14 +212,6 @@ function IconLink() {
         strokeWidth="1.5"
         strokeLinecap="round"
       />
-    </svg>
-  )
-}
-
-function IconLayout() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path d="M3 4.5h10M3 8h7M3 11.5h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   )
 }
@@ -497,7 +509,7 @@ function laneEdge(
     id,
     source,
     target,
-    type: 'straight',
+    type: 'smoothstep',
     markerEnd: arrow,
     className,
     zIndex: 3,
@@ -637,12 +649,17 @@ function withLaneColumns(nodes: FlowNode[]): FlowNode[] {
 }
 
 function nodeSize(node: FlowNode) {
-  if (node.type === 'decision') return { w: DECISION_W, h: DECISION_H }
-  return { w: PROCESS_W, h: PROCESS_H }
-}
+  const fallback =
+    node.type === 'decision'
+      ? { w: DECISION_W, h: DECISION_H }
+      : { w: PROCESS_W, h: PROCESS_H }
+  const width = node.measured?.width ?? node.width ?? node.style?.width
+  const height = node.measured?.height ?? node.height ?? node.style?.height
 
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max)
+  return {
+    w: typeof width === 'number' ? width : fallback.w,
+    h: typeof height === 'number' ? height : fallback.h,
+  }
 }
 
 function laneWidth(node: FlowNode) {
@@ -666,49 +683,6 @@ function getTargetLane(nodes: FlowNode[]): SwimlaneNode | undefined {
   return nodes.find(isSwimlane)
 }
 
-function formatNodes(nodes: FlowNode[]): FlowNode[] {
-  const lanes = nodes
-    .filter(isSwimlane)
-    .slice()
-    .sort((a, b) => a.position.x - b.position.x)
-  const children = nodes.filter((node) => node.parentId && !isSwimlane(node))
-  const formatted: FlowNode[] = []
-  let x = 0
-
-  for (const currentLane of lanes) {
-    const kids = children
-      .filter((node) => node.parentId === currentLane.id)
-      .slice()
-      .sort(
-        (a, b) => a.position.y - b.position.y || a.position.x - b.position.x,
-      )
-
-    let y = HEADER_Y
-    const width = LANE_W
-    const laidKids = kids.map((kid) => {
-      const { w, h } = nodeSize(kid)
-      const nextKid = {
-        ...kid,
-        position: { x: laneInnerX(width, w), y },
-        selected: false,
-      }
-      y += h + NODE_GAP
-      return nextKid
-    })
-
-    formatted.push({
-      ...currentLane,
-      position: { x, y: 0 },
-      selected: false,
-      style: { ...currentLane.style, width, height: Math.max(420, y + 64) },
-    })
-    formatted.push(...laidKids)
-    x += LANE_W + LANE_GAP
-  }
-
-  return withLaneColumns([...nodes.filter(isSwimlaneFrame), ...formatted])
-}
-
 function absolutePosition(nodes: FlowNode[], node: FlowNode) {
   let current: FlowNode | undefined = node
   let x = 0
@@ -726,9 +700,15 @@ function absolutePosition(nodes: FlowNode[], node: FlowNode) {
   return { x, y }
 }
 
+function nodeCenter(nodes: FlowNode[], node: FlowNode) {
+  const position = absolutePosition(nodes, node)
+  const { w, h } = nodeSize(node)
+  return { x: position.x + w / 2, y: position.y + h / 2 }
+}
+
 function connectHandles(nodes: FlowNode[], source: FlowNode, target: FlowNode) {
-  const from = absolutePosition(nodes, source)
-  const to = absolutePosition(nodes, target)
+  const from = nodeCenter(nodes, source)
+  const to = nodeCenter(nodes, target)
   const dx = to.x - from.x
   const dy = to.y - from.y
   if (Math.abs(dx) >= Math.abs(dy)) {
@@ -739,6 +719,72 @@ function connectHandles(nodes: FlowNode[], source: FlowNode, target: FlowNode) {
   return dy >= 0
     ? { sourceHandle: 'bottom', targetHandle: 'top' }
     : { sourceHandle: 'top', targetHandle: 'bottom' }
+}
+
+function settleLaneChild(
+  nodes: FlowNode[],
+  draggedNode: ProcessNode | DecisionFlowNode,
+) {
+  const node = nodes.find((item) => item.id === draggedNode.id)
+  if (!node || !isLaneChild(node)) return undefined
+
+  const draggedPosition = absolutePosition(nodes, {
+    ...node,
+    position: draggedNode.position,
+  })
+  const targetLane = laneForDraggedChild(nodes, draggedNode)
+  if (!targetLane) return undefined
+
+  const targetPosition = absolutePosition(nodes, targetLane)
+  const position =
+    targetLane.id === node.parentId
+      ? draggedNode.position
+      : {
+          x: draggedPosition.x - targetPosition.x,
+          y: draggedPosition.y - targetPosition.y,
+        }
+  const { w } = nodeSize(node)
+  const centeredX = laneInnerX(laneWidth(targetLane), w)
+  const shouldSnapToCenter =
+    Math.abs(position.x + w / 2 - laneWidth(targetLane) / 2) <=
+    LANE_CENTER_SNAP_DISTANCE
+
+  return nodes.map((item) =>
+    item.id === node.id
+      ? {
+          ...node,
+          parentId: targetLane.id,
+          position: {
+            x: shouldSnapToCenter ? centeredX : position.x,
+            y: position.y,
+          },
+          data: { ...node.data, tone: targetLane.data.tone },
+        }
+      : item,
+  )
+}
+
+function laneForDraggedChild(
+  nodes: FlowNode[],
+  draggedNode: ProcessNode | DecisionFlowNode,
+) {
+  const node = nodes.find((item) => item.id === draggedNode.id)
+  if (!node || !isLaneChild(node)) return undefined
+
+  const draggedPosition = absolutePosition(nodes, {
+    ...node,
+    position: draggedNode.position,
+  })
+  const { w } = nodeSize(node)
+  const centerX = draggedPosition.x + w / 2
+
+  return nodes.filter(isSwimlane).find((lane) => {
+    const lanePosition = absolutePosition(nodes, lane)
+    return (
+      centerX >= lanePosition.x &&
+      centerX <= lanePosition.x + laneWidth(lane)
+    )
+  })
 }
 
 function cloneGraph() {
@@ -766,6 +812,7 @@ function SwimLaneEditor() {
   const { fitView } = useReactFlow<FlowNode, FlowEdge>()
   const [nodes, setNodes] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState<FlowEdge>(initialEdges)
+  const [dragTargetLaneId, setDragTargetLaneId] = useState<string>()
 
   const selectedNodes = nodes.filter((node) => node.selected)
   const selectedEdges = edges.filter((edge) => edge.selected)
@@ -775,6 +822,12 @@ function SwimLaneEditor() {
       : undefined
   const selectedEdge = selectedEdges.length === 1 ? selectedEdges[0] : undefined
   const targetLane = getTargetLane(nodes)
+  const dragTargetLane = dragTargetLaneId
+    ? nodes.find(
+        (node): node is SwimlaneNode =>
+          isSwimlane(node) && node.id === dragTargetLaneId,
+      )
+    : undefined
   const selectedItems = selectedNodes.filter((node) => node.type !== 'swimlane')
   const canConnect = selectedItems.length === 2
   const canDelete = selectedNodes.length > 0 || selectedEdges.length > 0
@@ -795,66 +848,50 @@ function SwimLaneEditor() {
     [setNodes],
   )
 
+  const onNodeDragStart = useCallback<OnNodeDrag<FlowNode>>(
+    (_event, draggedNode) => {
+      if (!isLaneChild(draggedNode)) return
+
+      setDragTargetLaneId(draggedNode.parentId)
+    },
+    [],
+  )
+
+  const onNodeDrag = useCallback<OnNodeDrag<FlowNode>>(
+    (_event, draggedNode) => {
+      if (!isLaneChild(draggedNode)) return
+
+      const target = laneForDraggedChild(nodes, draggedNode)
+      setDragTargetLaneId((current) =>
+        current === target?.id ? current : target?.id,
+      )
+    },
+    [nodes],
+  )
+
   const onNodeDragStop = useCallback<OnNodeDrag<FlowNode>>(
     (_event, draggedNode) => {
       if (!isLaneChild(draggedNode)) return
 
-      setNodes((current) => {
-        const node = current.find((item) => item.id === draggedNode.id)
-        if (!node || !isLaneChild(node)) return current
-
-        const lanes = current.filter(isSwimlane)
-        const currentLane = lanes.find((lane) => lane.id === node.parentId)
-        if (!currentLane) return current
-
-        const { w, h } = nodeSize(node)
-        const absoluteX = currentLane.position.x + draggedNode.position.x
-        const absoluteY = currentLane.position.y + draggedNode.position.y
-        const centerX = absoluteX + w / 2
-        const targetLane =
-          lanes.find(
-            (lane) =>
-              centerX >= lane.position.x &&
-              centerX <= lane.position.x + laneWidth(lane),
-          ) ?? currentLane
-        const targetHeight = Number(targetLane.style?.height ?? LANE_H)
-
-        return withLaneColumns(
-          current.map((item) =>
-            item.id === node.id
-              ? {
-                  ...node,
-                  parentId: targetLane.id,
-                  position: {
-                    x: clamp(
-                      absoluteX - targetLane.position.x,
-                      24,
-                      LANE_W - w - 24,
-                    ),
-                    y: clamp(absoluteY, HEADER_Y, targetHeight - h - 24),
-                  },
-                  data: { ...node.data, tone: targetLane.data.tone },
-                }
-              : item,
-          ),
-        )
-      })
+      setDragTargetLaneId(undefined)
+      setNodes((current) => settleLaneChild(current, draggedNode) ?? current)
     },
     [setNodes],
   )
 
   const onConnect = useCallback(
-    (params: Connection) =>
+    (params: Connection) => {
       setEdges((current) =>
         addEdge(
           {
             ...params,
-            type: 'straight',
+            type: 'smoothstep',
             markerEnd: arrow,
           },
           current,
         ),
-      ),
+      )
+    },
     [setEdges],
   )
 
@@ -989,19 +1026,13 @@ function SwimLaneEditor() {
           source: source.id,
           target: target.id,
           ...connectHandles(nodes, source, target),
-          type: 'straight',
+          type: 'smoothstep',
           markerEnd: arrow,
         },
         current,
       ),
     )
   }, [nodes, selectedItems, setEdges])
-
-  const formatLayout = useCallback(() => {
-    setNodes((current) => formatNodes(current))
-    setEdges((current) => current.map((edge) => ({ ...edge, selected: false })))
-    scheduleFitView()
-  }, [scheduleFitView, setEdges, setNodes])
 
   const removeSelected = useCallback(() => {
     const selectedIds = new Set(selectedNodes.map((node) => node.id))
@@ -1112,6 +1143,8 @@ function SwimLaneEditor() {
       nodes={nodes}
       edges={edges}
       onNodesChange={onNodesChange}
+      onNodeDragStart={onNodeDragStart}
+      onNodeDrag={onNodeDrag}
       onNodeDragStop={onNodeDragStop}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
@@ -1119,6 +1152,7 @@ function SwimLaneEditor() {
       onBeforeDelete={onBeforeDelete}
       isValidConnection={isValidConnection}
       nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
       fitView
       fitViewOptions={{ padding: 0.08, minZoom: 0.62 }}
       minZoom={0.35}
@@ -1128,9 +1162,9 @@ function SwimLaneEditor() {
       deleteKeyCode={['Backspace', 'Delete']}
       multiSelectionKeyCode={['Shift', 'Control', 'Meta']}
       connectionMode={ConnectionMode.Loose}
-      connectionLineType={ConnectionLineType.Straight}
+      connectionLineType={ConnectionLineType.SmoothStep}
       defaultEdgeOptions={{
-        type: 'straight',
+        type: 'smoothstep',
         markerEnd: arrow,
       }}
       edgesReconnectable
@@ -1146,6 +1180,14 @@ function SwimLaneEditor() {
           ハンドルをドラッグして線をつなぎます。選択すると下のメニューから名前とカラーを変更できます。
         </p>
       </Panel>
+      {dragTargetLane ? (
+        <Panel position="top-center" className="lane-drop-hint">
+          移動先
+          <span className={`lane-chip lane-chip--${dragTargetLane.data.tone}`}>
+            {dragTargetLane.data.label}
+          </span>
+        </Panel>
+      ) : null}
       <Panel position="bottom-center" className="editor-dock">
         {hasSelection ? (
           <div
@@ -1194,7 +1236,11 @@ function SwimLaneEditor() {
           </span>
         </div>
         <div className="editor-group editor-group--add" aria-label="ノードを追加">
-          <ToolButton icon={<IconLane />} onClick={addLane} title="新しいレーンを右端に追加">
+          <ToolButton
+            icon={<IconLane />}
+            onClick={addLane}
+            title="新しいレーンを右端に追加"
+          >
             レーン
           </ToolButton>
           <ToolButton
@@ -1212,7 +1258,7 @@ function SwimLaneEditor() {
             判定
           </ToolButton>
         </div>
-        <div className="editor-group" aria-label="接続と配置">
+        <div className="editor-group" aria-label="接続">
           <ToolButton
             icon={<IconLink />}
             onClick={connectSelected}
@@ -1225,9 +1271,6 @@ function SwimLaneEditor() {
           >
             線を追加
           </ToolButton>
-          <ToolButton icon={<IconLayout />} onClick={formatLayout} title="レーンとノードを整列">
-            整形
-          </ToolButton>
         </div>
         <div className="editor-group editor-group--danger" aria-label="削除とリセット">
           <ToolButton
@@ -1239,7 +1282,11 @@ function SwimLaneEditor() {
           >
             削除
           </ToolButton>
-          <ToolButton icon={<IconReset />} onClick={reset} title="初期状態に戻す">
+          <ToolButton
+            icon={<IconReset />}
+            onClick={reset}
+            title="初期状態に戻す"
+          >
             リセット
           </ToolButton>
         </div>
